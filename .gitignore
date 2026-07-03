@@ -6,3 +6,4 @@ backend/prisma/dev.db-journal
 backend/uploads/
 frontend/dist/
 *.log
+*.tsbuildinfo
