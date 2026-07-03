@@ -1,0 +1,128 @@
+// Prisma schema for Silver Skills AI
+// Dev uses SQLite for zero-install setup. To move to PostgreSQL for production,
+// change provider to "postgresql" and set DATABASE_URL to a Postgres connection string —
+// no model changes are required.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String   @id @default(cuid())
+  name               String
+  email              String   @unique
+  passwordHash       String
+  employabilityScore Int      @default(50)
+  role               String   @default("user") // "user" | "admin"
+  isPremium          Boolean  @default(true) // prototype default: premium features unlocked for testing
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  skills      Skill[]
+  assessments Assessment[]
+  savedJobs   SavedJob[]
+  chatMessages ChatMessage[]
+  cvAnalyses  CvAnalysis[]
+}
+
+model Skill {
+  id         String  @id @default(cuid())
+  userId     String
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  level      Int
+  demandTag  String?
+  growthPct  Int?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Assessment {
+  id                  String   @id @default(cuid())
+  userId              String
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers             String // JSON blob of the 4-step wizard answers
+  resultSkills        String // JSON array of {name, level}
+  automationRisk      Int
+  adaptationPotential Int
+  summary             String? // AI-enriched or heuristic textual summary
+  createdAt           DateTime @default(now())
+
+  @@index([userId])
+}
+
+model SavedJob {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source        String
+  externalId    String
+  title         String
+  company       String?
+  url           String
+  compatibility Int?
+  salaryRange   String?
+  countries     String?
+  tags          String? // JSON array
+  createdAt     DateTime @default(now())
+
+  @@unique([userId, source, externalId])
+  @@index([userId])
+}
+
+model Course {
+  id             String  @id @default(cuid())
+  title          String
+  provider       String
+  url            String
+  isFree         Boolean @default(false)
+  priceLabel     String
+  durationWeeks  Int
+  level          String
+  rating         Float
+  studentsCount  Int
+  tags           String // JSON array
+  category       String
+  featured       Boolean @default(false)
+  createdAt      DateTime @default(now())
+}
+
+model LearningPath {
+  id        String @id @default(cuid())
+  title     String
+  weeks     Int
+  tags      String // JSON array
+  courseIds String // JSON array of Course ids
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String // "user" | "assistant"
+  content   String
+  cards     String? // JSON array of job/course cards attached to this message
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model CvAnalysis {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  filename    String
+  rawText     String // extracted CV text, reused by the CV generator without re-uploading
+  extractedSkills String // JSON array
+  atsScore    Int
+  suggestions String // JSON array of strings
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+}

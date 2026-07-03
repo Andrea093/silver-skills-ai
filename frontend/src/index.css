@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base size is intentionally larger than the browser default (16px) so every rem-based
+   Tailwind size (text, padding, gaps) scales up together — easier to read and tap for 45+ users.
+   The text-scale control in NavBar switches this via a data attribute on <html>. */
+html {
+  font-size: 17px;
+}
+html[data-text-scale="lg"] {
+  font-size: 20px;
+}
+html[data-text-scale="xl"] {
+  font-size: 23px;
+}
+
+body {
+  @apply bg-gray-50 text-gray-900;
+}
+
+/* More visible keyboard focus than the browser default, for easier navigation without a mouse. */
+:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
+}
