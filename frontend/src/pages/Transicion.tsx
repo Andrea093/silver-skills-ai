@@ -46,6 +46,7 @@ export function Transicion() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [generateMode, setGenerateMode] = useState<"ats" | "vacancy">("ats");
+  const [generateFormat, setGenerateFormat] = useState<"docx" | "pdf">("docx");
   const [selectedJobKey, setSelectedJobKey] = useState("");
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
@@ -103,7 +104,7 @@ export function Transicion() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ analysisId: cvResult.id, mode: generateMode, jobId: job }),
+        body: JSON.stringify({ analysisId: cvResult.id, mode: generateMode, format: generateFormat, jobId: job }),
       });
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
@@ -113,7 +114,7 @@ export function Transicion() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `CV_${generateMode === "vacancy" ? (job?.title || "vacante") : "ATS"}.docx`;
+      a.download = `CV_${generateMode === "vacancy" ? (job?.title || "vacante") : "ATS"}.${generateFormat}`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -287,9 +288,10 @@ export function Transicion() {
             <h2 className="font-semibold">Generar CV Optimizado</h2>
           </div>
           <p className="mb-4 text-sm text-gray-500">
-            Convierte tu CV en un documento Word listo para enviar: optimizado para sistemas ATS, o
-            adaptado a una vacante real específica. Función premium — habilitada en este prototipo
-            para que la pruebes sin costo.
+            Convierte tu CV en un documento listo para enviar: optimizado para sistemas ATS, o
+            adaptado a una vacante real específica — incluyendo las habilidades que ya registraste
+            en tu evaluación, aunque no estuvieran en tu CV original. Función premium — habilitada
+            en este prototipo para que la pruebes sin costo.
           </p>
 
           <div className="flex flex-wrap items-end gap-3">
@@ -302,6 +304,18 @@ export function Transicion() {
               >
                 <option value="ats">Optimizado para ATS (general)</option>
                 <option value="vacancy">Adaptado a una vacante específica</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Formato</label>
+              <select
+                value={generateFormat}
+                onChange={(e) => setGenerateFormat(e.target.value as "docx" | "pdf")}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+              >
+                <option value="docx">Word (.docx)</option>
+                <option value="pdf">PDF</option>
               </select>
             </div>
 
@@ -332,7 +346,7 @@ export function Transicion() {
               disabled={generating}
               className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
             >
-              {generating ? "Generando..." : "Generar y descargar .docx"}
+              {generating ? "Generando..." : `Generar y descargar .${generateFormat}`}
             </button>
           </div>
           {generateError && <p className="mt-3 text-sm text-red-600">{generateError}</p>}

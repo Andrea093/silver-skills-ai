@@ -71,6 +71,7 @@ cvRouter.post("/analyze", requireAuth, upload.single("cv"), async (req, res) => 
 const generateSchema = z.object({
   analysisId: z.string(),
   mode: z.enum(["ats", "vacancy"]),
+  format: z.enum(["docx", "pdf"]).default("docx"),
   jobId: z
     .object({
       source: z.string(),
@@ -99,7 +100,7 @@ cvRouter.post("/generate", requireAuth, async (req, res) => {
 
   const parsed = generateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Datos inválidos", details: parsed.error.flatten() });
-  const { analysisId, mode, jobId: targetJob, contact } = parsed.data;
+  const { analysisId, mode, format, jobId: targetJob, contact } = parsed.data;
 
   const analysis = await prisma.cvAnalysis.findFirst({ where: { id: analysisId, userId: user.id } });
   if (!analysis) return res.status(404).json({ error: "Análisis de CV no encontrado" });
@@ -109,23 +110,28 @@ cvRouter.post("/generate", requireAuth, async (req, res) => {
   }
 
   try {
+    const platformSkills = await prisma.skill.findMany({
+      where: { userId: user.id },
+      select: { name: true, level: true },
+    });
+
     const buffer = await generateTailoredCv({
       rawText: analysis.rawText,
       mode,
+      format,
       targetJob,
       contact: { name: user.name, email: user.email, ...contact },
+      platformSkills,
     });
 
     const safeName = user.name.replace(/[^a-zA-Z0-9]+/g, "_");
     const suffix = mode === "vacancy" ? `_${(targetJob!.title || "vacante").replace(/[^a-zA-Z0-9]+/g, "_")}` : "_ATS";
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="CV_${safeName}${suffix}.docx"`
-    );
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    );
+    const contentTypes = {
+      docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      pdf: "application/pdf",
+    };
+    res.setHeader("Content-Disposition", `attachment; filename="CV_${safeName}${suffix}.${format}"`);
+    res.setHeader("Content-Type", contentTypes[format]);
     res.send(buffer);
   } catch (err) {
     console.error(err);
