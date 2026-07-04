@@ -47,12 +47,17 @@ También puedes crear tu propia cuenta desde "Regístrate".
 
 ## Dónde asignar/modificar usuarios, credenciales y contraseñas
 
-Cada vez que corres `npx prisma db seed` (o el build de producción, que reseedea automáticamente)
-se crea/actualiza una cuenta **administradora** y se imprime su contraseña en la consola, por ejemplo:
+El seed crea una cuenta **administradora** fija:
 
 ```
-Admin login: admin@silverskills.ai / rVWfKOxS
+admin@silverskills.ai / SilverSkills2026!
 ```
+
+(o el valor que pongas en `ADMIN_DEFAULT_PASSWORD` en `.env`). A propósito, **cada `npx prisma db
+seed` (incluido el build automático en cada redeploy de Render) restablece esa contraseña a este
+valor conocido** — así nunca te quedas sin poder entrar como admin. Si ya la cambiaste desde
+`/admin` y quieres que los redeploys dejen de tocarla, agrega `ADMIN_PASSWORD_LOCKED=true` en el
+entorno.
 
 Inicia sesión con esa cuenta y entra a **`/admin`** (aparece un link "🛠️ Admin" en la barra de
 navegación solo para administradores). Desde ahí puedes, para cualquier usuario:
@@ -144,8 +149,9 @@ de terceros en tu nombre):
    Prisma contra Postgres, siembra datos, compila).
 5. Cuando termine, abre la URL del servicio `silver-skills-frontend`
    (algo como `https://silver-skills-frontend.onrender.com`) — esa es la URL pública para compartir.
-6. Revisa los **logs de build** del backend: ahí aparece impresa la contraseña de la cuenta
-   `admin@silverskills.ai` para ese despliegue (se regenera en cada build).
+6. Inicia sesión como admin con `admin@silverskills.ai` / `SilverSkills2026!` (o el valor que
+   hayas puesto en `ADMIN_DEFAULT_PASSWORD`) y cámbiala desde `/admin` si quieres — ver la sección
+   de arriba sobre `ADMIN_PASSWORD_LOCKED` si no quieres que los redeploys la reestablezcan.
 
 **Limitaciones del plan gratuito de Render** (aceptables para un prototipo, no para producción real):
 - El backend "se duerme" tras ~15 min sin tráfico; la primera visita tras eso tarda ~30-60s en

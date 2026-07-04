@@ -1,6 +1,5 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import crypto from "crypto";
 
 const prisma = new PrismaClient();
 
@@ -263,11 +262,16 @@ async function main() {
   });
 
   console.log("Seeding admin account...");
-  const adminPassword = crypto.randomBytes(6).toString("base64url");
+  // By default every seed run (including on each Render redeploy) resets the admin password back
+  // to a known, documented value — recoverability matters more than silently preserving a change
+  // for this prototype's admin account. If you've customized the password via /admin and want
+  // redeploys to leave it alone, set ADMIN_PASSWORD_LOCKED=true.
+  const adminPassword = process.env.ADMIN_DEFAULT_PASSWORD || "SilverSkills2026!";
   const adminPasswordHash = await bcrypt.hash(adminPassword, 10);
+  const adminPasswordLocked = process.env.ADMIN_PASSWORD_LOCKED === "true";
   await prisma.user.upsert({
     where: { email: "admin@silverskills.ai" },
-    update: { passwordHash: adminPasswordHash, role: "admin" },
+    update: adminPasswordLocked ? {} : { passwordHash: adminPasswordHash, role: "admin" },
     create: {
       name: "Administrador",
       email: "admin@silverskills.ai",
@@ -279,7 +283,11 @@ async function main() {
 
   console.log("Seed complete.");
   console.log("Demo login:  maria.gonzalez@example.com / demo1234");
-  console.log(`Admin login: admin@silverskills.ai / ${adminPassword}  (cámbiala luego desde /admin o vuelve a correr el seed para regenerarla)`);
+  if (adminPasswordLocked) {
+    console.log("Admin login: admin@silverskills.ai / (contraseña bloqueada — ADMIN_PASSWORD_LOCKED=true, no se tocó)");
+  } else {
+    console.log(`Admin login: admin@silverskills.ai / ${adminPassword}`);
+  }
 }
 
 main()

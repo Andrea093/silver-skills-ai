@@ -2,7 +2,8 @@ export interface AuthUser {
   id: string;
   name: string;
   email: string;
-  employabilityScore: number;
+  employabilityScore: number | null;
+  hasProfile: boolean;
   role: "user" | "admin";
   isPremium: boolean;
 }

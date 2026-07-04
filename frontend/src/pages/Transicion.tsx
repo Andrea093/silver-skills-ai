@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { api, API_BASE } from "../lib/api";
 import { Card, ProgressBar, Badge } from "../components/ui";
 import { NormalizedJob, PortalSearchLink } from "../types";
 
 interface TransitionData {
-  automationRisk: number;
-  adaptationPotential: number;
+  hasProfile: boolean;
+  automationRisk: number | null;
+  adaptationPotential: number | null;
   sectorGrowth: { sector: string; value: number }[];
-  currentLevel: number;
+  currentLevel: number | null;
   requiredLevel: number;
-  topSkill: string;
+  topSkill: string | null;
   jobs: NormalizedJob[];
   portalLinks: PortalSearchLink[];
 }
@@ -48,8 +50,12 @@ export function Transicion() {
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
 
+  function loadTransition() {
+    return api.get<TransitionData>("/transition?country=mx").then(setData);
+  }
+
   useEffect(() => {
-    api.get<TransitionData>("/transition?country=mx").then(setData);
+    loadTransition();
   }, []);
 
   async function handleSave(job: NormalizedJob) {
@@ -74,6 +80,7 @@ export function Transicion() {
       form.append("cv", file);
       const res = await api.post<CvAnalysisResult>("/cv/analyze", form);
       setCvResult(res);
+      await loadTransition(); // a successful CV upload can turn hasProfile from false to true
     } catch (err: any) {
       setCvError(err.message || "Error al analizar el CV");
     } finally {
@@ -120,7 +127,64 @@ export function Transicion() {
 
   if (!data) return <p className="text-gray-500">Cargando...</p>;
 
-  const risk = riskLabel(data.automationRisk);
+  const risk = data.automationRisk !== null ? riskLabel(data.automationRisk) : null;
+
+  const cvUploadCard = (
+    <Card>
+      <h2 className="mb-1 font-semibold">Análisis de Hoja de Vida</h2>
+      <p className="mb-4 text-sm text-gray-500">
+        Sube tu currículum y lo analizaremos para identificar habilidades, experiencia y optimizarlo para sistemas ATS
+      </p>
+      <div
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          const file = e.dataTransfer.files?.[0];
+          if (file) handleFile(file);
+        }}
+        onClick={() => fileInputRef.current?.click()}
+        className="cursor-pointer rounded-xl border-2 border-dashed border-gray-300 p-10 text-center transition hover:border-brand-400"
+      >
+        <div className="text-3xl">⬆️</div>
+        <p className="mt-2 font-medium">Arrastra tu CV aquí o haz clic para seleccionar</p>
+        <p className="text-sm text-gray-500">Formatos soportados: PDF, DOC, DOCX (máx. 5MB)</p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          aria-label="Subir currículum"
+          accept=".pdf,.doc,.docx"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleFile(file);
+          }}
+        />
+      </div>
+      {cvUploading && <p className="mt-3 text-sm text-gray-500">Analizando tu CV...</p>}
+      {cvError && <p className="mt-3 text-sm text-red-600">{cvError}</p>}
+      {cvResult && (
+        <div className="mt-4 space-y-3 rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-500">Puntaje ATS estimado</span>
+            <span className="text-lg font-semibold text-brand-700">{cvResult.atsScore}%</span>
+          </div>
+          <ProgressBar value={cvResult.atsScore} />
+          {cvResult.extractedSkills.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {cvResult.extractedSkills.map((s) => (
+                <Badge key={s}>{s}</Badge>
+              ))}
+            </div>
+          )}
+          <ul className="list-disc space-y-1 pl-5 text-sm text-gray-600">
+            {cvResult.suggestions.map((s, i) => (
+              <li key={i}>{s}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </Card>
+  );
 
   return (
     <div className="space-y-6">
@@ -129,39 +193,52 @@ export function Transicion() {
         <p className="text-gray-500">Descubre oportunidades compatibles con tu perfil en el mercado latinoamericano</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <div className="mb-1 flex items-center gap-2 text-sm text-gray-500">
-            <span>⏱️</span>
-            <span>Riesgo de Automatización</span>
-          </div>
-          <p className="text-xs text-gray-500">De tus habilidades actuales</p>
-          <div className="my-3 flex items-center gap-3">
-            <span className="text-3xl font-bold">{data.automationRisk}%</span>
-            <Badge tone={risk.tone}>{risk.text}</Badge>
-          </div>
-          <ProgressBar value={data.automationRisk} />
-          <p className="mt-3 text-sm text-gray-500">
-            Tus habilidades de liderazgo y comunicación tienen bajo riesgo de automatización.
+      {!data.hasProfile && (
+        <Card className="border-2 border-brand-200 bg-brand-50">
+          <p className="text-sm text-brand-800">
+            Todo lo de esta página depende de tu perfil, y aún no tienes uno.{" "}
+            <Link to="/evaluacion" className="font-medium underline">Completa la evaluación</Link>{" "}
+            o sube tu CV abajo para ver tu riesgo de automatización, potencial de adaptación y vacantes
+            reales compatibles contigo — sin eso no podemos mostrarte nada personalizado.
           </p>
         </Card>
+      )}
 
-        <Card>
-          <div className="mb-1 flex items-center gap-2 text-sm text-gray-500">
-            <span>📈</span>
-            <span>Potencial de Adaptación</span>
-          </div>
-          <p className="text-xs text-gray-500">Capacidad de reentrenamiento</p>
-          <div className="my-3 flex items-center gap-3">
-            <span className="text-3xl font-bold">{data.adaptationPotential}%</span>
-            <Badge tone="green">{adaptationLabel(data.adaptationPotential)}</Badge>
-          </div>
-          <ProgressBar value={data.adaptationPotential} />
-          <p className="mt-3 text-sm text-gray-500">
-            Tu experiencia y perfil son ideales para roles de consultoría y transformación.
-          </p>
-        </Card>
-      </div>
+      {data.hasProfile && (
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <div className="mb-1 flex items-center gap-2 text-sm text-gray-500">
+              <span>⏱️</span>
+              <span>Riesgo de Automatización</span>
+            </div>
+            <p className="text-xs text-gray-500">De tus habilidades actuales</p>
+            <div className="my-3 flex items-center gap-3">
+              <span className="text-3xl font-bold">{data.automationRisk}%</span>
+              {risk && <Badge tone={risk.tone}>{risk.text}</Badge>}
+            </div>
+            <ProgressBar value={data.automationRisk!} />
+            <p className="mt-3 text-sm text-gray-500">
+              Calculado a partir de las habilidades que registraste en tu evaluación.
+            </p>
+          </Card>
+
+          <Card>
+            <div className="mb-1 flex items-center gap-2 text-sm text-gray-500">
+              <span>📈</span>
+              <span>Potencial de Adaptación</span>
+            </div>
+            <p className="text-xs text-gray-500">Capacidad de reentrenamiento</p>
+            <div className="my-3 flex items-center gap-3">
+              <span className="text-3xl font-bold">{data.adaptationPotential}%</span>
+              <Badge tone="green">{adaptationLabel(data.adaptationPotential!)}</Badge>
+            </div>
+            <ProgressBar value={data.adaptationPotential!} />
+            <p className="mt-3 text-sm text-gray-500">
+              Basado en tu experiencia, habilidades digitales y disponibilidad para aprender.
+            </p>
+          </Card>
+        </div>
+      )}
 
       <Card>
         <h2 className="mb-4 font-semibold">Sectores con Mayor Crecimiento en LATAM</h2>
@@ -177,79 +254,31 @@ export function Transicion() {
         </div>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <div className="text-sm font-medium text-gray-700">Tu Nivel Actual</div>
-          <p className="text-xs text-gray-500">Basado en tu experiencia y evaluación</p>
-          <div className="mt-2 text-2xl font-bold text-brand-700">{data.currentLevel}%</div>
-        </Card>
-        <Card>
-          <div className="text-sm font-medium text-gray-700">Nivel Requerido</div>
-          <p className="text-xs text-gray-500">Promedio del mercado laboral</p>
-          <div className="mt-2 text-2xl font-bold">{data.requiredLevel}%</div>
-        </Card>
-      </div>
-
-      <Card className="bg-brand-50">
-        <p className="text-sm text-brand-800">
-          <strong>Recomendación:</strong> Prioriza mejorar tus habilidades digitales relacionadas con{" "}
-          <strong>{data.topSkill}</strong> para alcanzar el nivel requerido en las oportunidades más demandadas.
-        </p>
-      </Card>
-
-      <Card>
-        <h2 className="mb-1 font-semibold">Análisis de Hoja de Vida</h2>
-        <p className="mb-4 text-sm text-gray-500">
-          Sube tu currículum y lo analizaremos para identificar habilidades, experiencia y optimizarlo para sistemas ATS
-        </p>
-        <div
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault();
-            const file = e.dataTransfer.files?.[0];
-            if (file) handleFile(file);
-          }}
-          onClick={() => fileInputRef.current?.click()}
-          className="cursor-pointer rounded-xl border-2 border-dashed border-gray-300 p-10 text-center transition hover:border-brand-400"
-        >
-          <div className="text-3xl">⬆️</div>
-          <p className="mt-2 font-medium">Arrastra tu CV aquí o haz clic para seleccionar</p>
-          <p className="text-sm text-gray-500">Formatos soportados: PDF, DOC, DOCX (máx. 5MB)</p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.doc,.docx"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleFile(file);
-            }}
-          />
-        </div>
-        {cvUploading && <p className="mt-3 text-sm text-gray-500">Analizando tu CV...</p>}
-        {cvError && <p className="mt-3 text-sm text-red-600">{cvError}</p>}
-        {cvResult && (
-          <div className="mt-4 space-y-3 rounded-xl border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">Puntaje ATS estimado</span>
-              <span className="text-lg font-semibold text-brand-700">{cvResult.atsScore}%</span>
-            </div>
-            <ProgressBar value={cvResult.atsScore} />
-            {cvResult.extractedSkills.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {cvResult.extractedSkills.map((s) => (
-                  <Badge key={s}>{s}</Badge>
-                ))}
-              </div>
-            )}
-            <ul className="list-disc space-y-1 pl-5 text-sm text-gray-600">
-              {cvResult.suggestions.map((s, i) => (
-                <li key={i}>{s}</li>
-              ))}
-            </ul>
+      {data.hasProfile && (
+        <>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <div className="text-sm font-medium text-gray-700">Tu Nivel Actual</div>
+              <p className="text-xs text-gray-500">Basado en tu experiencia y evaluación</p>
+              <div className="mt-2 text-2xl font-bold text-brand-700">{data.currentLevel}%</div>
+            </Card>
+            <Card>
+              <div className="text-sm font-medium text-gray-700">Nivel Requerido</div>
+              <p className="text-xs text-gray-500">Promedio del mercado laboral</p>
+              <div className="mt-2 text-2xl font-bold">{data.requiredLevel}%</div>
+            </Card>
           </div>
-        )}
-      </Card>
+
+          <Card className="bg-brand-50">
+            <p className="text-sm text-brand-800">
+              <strong>Recomendación:</strong> Prioriza mejorar tus habilidades digitales relacionadas con{" "}
+              <strong>{data.topSkill}</strong> para alcanzar el nivel requerido en las oportunidades más demandadas.
+            </p>
+          </Card>
+        </>
+      )}
+
+      {cvUploadCard}
 
       {cvResult && (
         <Card className="border-2 border-brand-200 bg-white">
@@ -298,6 +327,7 @@ export function Transicion() {
             )}
 
             <button
+              type="button"
               onClick={handleGenerateCv}
               disabled={generating}
               className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
@@ -309,74 +339,77 @@ export function Transicion() {
         </Card>
       )}
 
-      <Card>
-        <h2 className="mb-4 font-semibold">Oportunidades Laborales Compatibles</h2>
-        {data.jobs.length === 0 ? (
-          <p className="text-sm text-gray-500">No se encontraron vacantes en este momento. Usa los enlaces de búsqueda directa abajo.</p>
-        ) : (
-          <div className="space-y-4">
-            {data.jobs.map((job) => {
-              const key = `${job.source}:${job.externalId}`;
-              const isSaved = savedIds.has(key);
-              return (
-                <div key={key} className="rounded-xl border border-gray-200 p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <div className="font-medium">{job.title}</div>
-                      <div className="text-sm text-gray-500">
-                        {job.company} · {job.location}
-                        {job.salary && <> · {job.salary}</>}
+      {data.hasProfile && (
+        <Card>
+          <h2 className="mb-4 font-semibold">Oportunidades Laborales Compatibles</h2>
+          {data.jobs.length === 0 ? (
+            <p className="text-sm text-gray-500">No se encontraron vacantes en este momento. Usa los enlaces de búsqueda directa abajo.</p>
+          ) : (
+            <div className="space-y-4">
+              {data.jobs.map((job) => {
+                const key = `${job.source}:${job.externalId}`;
+                const isSaved = savedIds.has(key);
+                return (
+                  <div key={key} className="rounded-xl border border-gray-200 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div className="font-medium">{job.title}</div>
+                        <div className="text-sm text-gray-500">
+                          {job.company} · {job.location}
+                          {job.salary && <> · {job.salary}</>}
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {job.tags.slice(0, 5).map((t) => (
+                            <Badge key={t} tone="gray">
+                              {t}
+                            </Badge>
+                          ))}
+                          <Badge>{job.source}</Badge>
+                        </div>
                       </div>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {job.tags.slice(0, 5).map((t) => (
-                          <Badge key={t} tone="gray">
-                            {t}
-                          </Badge>
-                        ))}
-                        <Badge>{job.source}</Badge>
+                      <div className="flex flex-col gap-2">
+                        <a
+                          href={job.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="rounded-lg bg-brand-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-brand-700"
+                        >
+                          Ver oferta ↗
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => handleSave(job)}
+                          disabled={isSaved}
+                          className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:border-brand-300 disabled:opacity-50"
+                        >
+                          {isSaved ? "Guardado ✓" : "Guardar"}
+                        </button>
                       </div>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <a
-                        href={job.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="rounded-lg bg-brand-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-brand-700"
-                      >
-                        Ver oferta ↗
-                      </a>
-                      <button
-                        onClick={() => handleSave(job)}
-                        disabled={isSaved}
-                        className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:border-brand-300 disabled:opacity-50"
-                      >
-                        {isSaved ? "Guardado ✓" : "Guardar"}
-                      </button>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          )}
 
-        <div className="mt-5 border-t border-gray-100 pt-5">
-          <p className="mb-3 text-sm font-medium text-gray-700">Buscar más directamente en los portales principales</p>
-          <div className="flex flex-wrap gap-2">
-            {data.portalLinks.map((link) => (
-              <a
-                key={link.portal}
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-full border border-gray-300 px-4 py-1.5 text-sm text-gray-600 hover:border-brand-400 hover:text-brand-700"
-              >
-                {link.portal} ↗
-              </a>
-            ))}
+          <div className="mt-5 border-t border-gray-100 pt-5">
+            <p className="mb-3 text-sm font-medium text-gray-700">Buscar más directamente en los portales principales</p>
+            <div className="flex flex-wrap gap-2">
+              {data.portalLinks.map((link) => (
+                <a
+                  key={link.portal}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-full border border-gray-300 px-4 py-1.5 text-sm text-gray-600 hover:border-brand-400 hover:text-brand-700"
+                >
+                  {link.portal} ↗
+                </a>
+              ))}
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      )}
     </div>
   );
 }

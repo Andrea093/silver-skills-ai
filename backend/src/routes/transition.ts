@@ -13,21 +13,29 @@ transitionRouter.get("/", requireAuth, async (req, res) => {
   });
 
   const skills = await prisma.skill.findMany({ where: { userId: req.userId! } });
-  const topSkill = skills.sort((a, b) => b.level - a.level)[0]?.name || "consultoría digital";
+  const latestCv = await prisma.cvAnalysis.findFirst({
+    where: { userId: req.userId! },
+    orderBy: { createdAt: "desc" },
+  });
+  const cvSkills: string[] = latestCv ? JSON.parse(latestCv.extractedSkills) : [];
+
+  const topSkill = skills.sort((a, b) => b.level - a.level)[0]?.name || cvSkills[0];
+  const hasProfile = Boolean(topSkill);
   const country = (req.query.country as string) || "mx";
 
-  const jobs = await searchJobs(topSkill, country);
-  const portalLinks = buildPortalSearchLinks(topSkill, country);
+  const jobs = hasProfile ? await searchJobs(topSkill!, country) : [];
+  const portalLinks = hasProfile ? buildPortalSearchLinks(topSkill!, country) : [];
 
   res.json({
-    automationRisk: latest?.automationRisk ?? 50,
-    adaptationPotential: latest?.adaptationPotential ?? 50,
+    hasProfile,
+    automationRisk: hasProfile ? latest?.automationRisk ?? null : null,
+    adaptationPotential: hasProfile ? latest?.adaptationPotential ?? null : null,
     sectorGrowth: SECTOR_GROWTH,
     currentLevel: skills.length
       ? Math.round(skills.reduce((sum, s) => sum + s.level, 0) / skills.length)
-      : 50,
+      : null,
     requiredLevel: 80,
-    topSkill,
+    topSkill: topSkill || null,
     jobs,
     portalLinks,
   });

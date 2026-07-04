@@ -7,7 +7,7 @@ import { requireAuth } from "../middleware/requireAuth";
 
 export const authRouter = Router();
 
-function serializeUser(user: {
+async function serializeUser(user: {
   id: string;
   name: string;
   email: string;
@@ -15,11 +15,17 @@ function serializeUser(user: {
   role: string;
   isPremium: boolean;
 }) {
+  const skillCount = await prisma.skill.count({ where: { userId: user.id } });
+  const cvCount = await prisma.cvAnalysis.count({ where: { userId: user.id } });
+  const hasProfile = skillCount > 0 || cvCount > 0;
   return {
     id: user.id,
     name: user.name,
     email: user.email,
-    employabilityScore: user.employabilityScore,
+    // Only meaningful once the user has completed an assessment or uploaded a CV — otherwise it's
+    // just the DB default and showing it (e.g. in the nav bar) would look like a real, evaluated score.
+    employabilityScore: hasProfile ? user.employabilityScore : null,
+    hasProfile,
     role: user.role,
     isPremium: user.isPremium,
   };
@@ -61,7 +67,7 @@ authRouter.post("/register", async (req, res) => {
 
   const token = signToken({ userId: user.id });
   res.cookie(AUTH_COOKIE_NAME, token, cookieOptions);
-  res.json(serializeUser(user));
+  res.json(await serializeUser(user));
 });
 
 const loginSchema = z.object({
@@ -84,7 +90,7 @@ authRouter.post("/login", async (req, res) => {
 
   const token = signToken({ userId: user.id });
   res.cookie(AUTH_COOKIE_NAME, token, cookieOptions);
-  res.json(serializeUser(user));
+  res.json(await serializeUser(user));
 });
 
 authRouter.post("/logout", (_req, res) => {
@@ -95,5 +101,5 @@ authRouter.post("/logout", (_req, res) => {
 authRouter.get("/me", requireAuth, async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.userId! } });
   if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
-  res.json(serializeUser(user));
+  res.json(await serializeUser(user));
 });

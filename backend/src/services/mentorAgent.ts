@@ -137,30 +137,58 @@ export async function runMentorAgent(
 async function runFallbackMentor(userMessage: string, profile: UserProfileForMentor): Promise<MentorReply> {
   const lower = userMessage.toLowerCase();
   const cards: MentorCard[] = [];
+  const firstName = profile.name.split(" ")[0];
+  const hasProfile = profile.skills.length > 0;
   let message: string;
 
-  const wantsJobs = /(empleo|vacante|trabajo|oportunidad)/.test(lower);
-  const wantsCourses = /(curso|aprender|capacitaci|formaci|habilidad)/.test(lower);
+  const wantsJobs = /(empleo|vacante|trabajo|oportunidad|contrat)/.test(lower);
+  const wantsCourses = /(curso|aprender|capacitaci|formaci|estudiar)/.test(lower);
+  const wantsProgress = /(progreso|plan de desarrollo|mi plan|estadistic|estadíst)/.test(lower);
+  const wantsGoals = /(meta|objetivo)/.test(lower);
+  const wantsCareerAdvice = /(consejo|orientaci|carrera|empleabilidad|mejorar mi|c[oó]mo mejoro)/.test(lower);
+  const isGreeting = /^\s*(hola|buenas|hey|qu[eé] tal|buenos d[ií]as|buenas tardes|buenas noches)/.test(lower);
+  const isThanks = /gracias/.test(lower);
 
-  if (wantsJobs) {
-    const topSkill = profile.skills.sort((a, b) => b.level - a.level)[0]?.name || "consultoría";
+  if (!hasProfile && (wantsJobs || wantsCourses || wantsProgress || wantsGoals || wantsCareerAdvice)) {
+    // Every one of these needs at least one real skill to personalize around — without that we'd
+    // otherwise fall back to a generic, made-up skill, which is exactly what shouldn't happen.
+    message = `Para responder eso necesito conocer tu perfil primero. Completa la Evaluación (menú "Evaluación") o sube tu CV en "Transición" — con eso puedo buscarte vacantes y cursos reales que sí apliquen a ti, en vez de darte algo genérico.`;
+  } else if (wantsJobs) {
+    const topSkill = profile.skills.sort((a, b) => b.level - a.level)[0].name;
     const jobs = await searchJobs(topSkill, profile.country);
     const portalLinks = buildPortalSearchLinks(topSkill, profile.country);
     cards.push({ type: "job", data: { jobs: jobs.slice(0, 6), portalLinks } });
     message = `Basado en tu habilidad más fuerte (${topSkill}), encontré vacantes reales y enlaces de búsqueda directa en los portales principales. Revisa las tarjetas debajo.`;
   } else if (wantsCourses) {
+    const weakest = profile.skills.sort((a, b) => a.level - b.level)[0];
     const topic = /marketing/.test(lower)
       ? "marketing digital"
       : /ia|inteligencia/.test(lower)
       ? "inteligencia artificial"
       : /excel|dato/.test(lower)
       ? "análisis de datos"
-      : "liderazgo";
+      : weakest.name;
     const courses = await searchCoursesByTopic(topic);
     cards.push({ type: "course", data: { courses } });
-    message = `Te recomiendo empezar por "${topic}". Aquí tienes cursos reales, gratuitos y de pago, con enlace directo.`;
+    message = `Te recomiendo empezar por "${topic}"${
+      topic === weakest.name ? " — es donde tu evaluación mostró más oportunidad de mejora" : ""
+    }. Aquí tienes cursos reales, gratuitos y de pago, con enlace directo.`;
+  } else if (wantsProgress) {
+    const summary = profile.skills.map((s) => `${s.name}: ${s.level}%`).join(", ");
+    message = hasProfile
+      ? `Tu índice de empleabilidad actual es ${profile.employabilityScore}%. Tus habilidades registradas son: ${summary}. Pregúntame "recomiéndame cursos" para saber en qué enfocarte para subirlo.`
+      : `Aún no tienes una evaluación registrada, así que no tengo progreso que mostrarte todavía. Completa la Evaluación para empezar a medirlo.`;
+  } else if (wantsGoals) {
+    message = `Puedo ayudarte a definir metas concretas una vez conozca tu perfil. Ve a "Evaluación" y cuéntame tus intereses y disponibilidad semanal — con eso te sugiero una ruta de aprendizaje realista.`;
+  } else if (wantsCareerAdvice) {
+    const weakest = profile.skills.sort((a, b) => a.level - b.level)[0];
+    message = `Para subir tu empleabilidad, lo más efectivo suele ser reforzar tu habilidad más débil (${weakest.name}, ${weakest.level}%) con un curso corto y aplicarla en una vacante real cuanto antes. Pregúntame "recomiéndame cursos" o "muéstrame vacantes" y te muestro opciones reales.`;
+  } else if (isThanks) {
+    message = `¡Con gusto, ${firstName}! Si quieres seguir avanzando, pregúntame por vacantes o cursos cuando quieras.`;
+  } else if (isGreeting) {
+    message = `¡Hola ${firstName}! ¿En qué te ayudo hoy? Puedo buscarte vacantes reales, recomendarte cursos, o darte consejos de carrera según tu evaluación.`;
   } else {
-    message = `¡Hola ${profile.name.split(" ")[0]}! Soy tu Mentor IA (modo asistido). Puedo ayudarte a: buscar vacantes reales compatibles con tu perfil, o recomendarte cursos reales para mejorar tu empleabilidad. Prueba preguntando "recomiéndame cursos" o "muéstrame vacantes para mí".`;
+    message = `No estoy seguro de haber entendido bien tu pregunta (estoy en modo asistido, sin IA generativa activada). Puedo ayudarte con algo concreto: vacantes reales, cursos reales, tu progreso, o consejos de carrera — dime cuál te interesa.`;
   }
 
   return { message, cards };

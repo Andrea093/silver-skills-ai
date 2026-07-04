@@ -79,6 +79,7 @@ export function Cursos() {
           {CATEGORIES.map((cat) => (
             <button
               key={cat}
+              type="button"
               onClick={() => setCategory(cat)}
               className={`rounded-full px-4 py-2 text-sm font-medium transition ${
                 category === cat ? "bg-brand-600 text-white" : "border border-gray-300 text-gray-600"

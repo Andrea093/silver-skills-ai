@@ -7,7 +7,8 @@ import { useAuth } from "../context/AuthContext";
 
 interface DashboardData {
   name: string;
-  employabilityScore: number;
+  hasProfile: boolean;
+  employabilityScore: number | null;
   skills: { name: string; level: number }[];
   activeSkillsCount: number;
   opportunitiesCount: number;
@@ -31,9 +32,10 @@ export function Dashboard() {
   if (!data) return <p className="text-gray-500">No se pudo cargar el dashboard.</p>;
 
   const firstName = (user?.name || data.name).split(" ")[0];
+  const score = data.employabilityScore ?? 0;
   const pieData = [
-    { name: "Completado", value: data.employabilityScore },
-    { name: "Por mejorar", value: 100 - data.employabilityScore },
+    { name: "Completado", value: score },
+    { name: "Por mejorar", value: 100 - score },
   ];
 
   return (
@@ -47,20 +49,37 @@ export function Dashboard() {
           to="/evaluacion"
           className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
         >
-          🧭 Actualizar evaluación
+          🧭 {data.hasProfile ? "Actualizar evaluación" : "Completar evaluación"}
         </Link>
       </div>
 
+      {!data.hasProfile && (
+        <Card className="border-2 border-brand-200 bg-brand-50">
+          <p className="text-sm text-brand-800">
+            Aún no tienes una evaluación ni un CV registrado, así que no hay nada personalizado que
+            mostrarte todavía. <Link to="/evaluacion" className="font-medium underline">Completa la evaluación</Link>{" "}
+            o sube tu CV en <Link to="/transicion" className="font-medium underline">Transición</Link> para
+            ver tu índice de empleabilidad, habilidades y vacantes reales compatibles contigo.
+          </p>
+        </Card>
+      )}
+
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="bg-brand-600 text-white">
-          <div className="flex items-center justify-between text-sm text-brand-100">
+        <Card className={data.hasProfile ? "bg-brand-600 text-white" : "bg-white"}>
+          <div className={`flex items-center justify-between text-sm ${data.hasProfile ? "text-brand-100" : "text-gray-500"}`}>
             <span>Índice de Empleabilidad</span>
             <span>📈</span>
           </div>
-          <div className="mt-1 text-3xl font-bold">{data.employabilityScore}%</div>
-          <div className="mt-3">
-            <ProgressBar value={data.employabilityScore} colorClass="bg-white" />
-          </div>
+          {data.hasProfile ? (
+            <>
+              <div className="mt-1 text-3xl font-bold">{data.employabilityScore}%</div>
+              <div className="mt-3">
+                <ProgressBar value={data.employabilityScore!} colorClass="bg-white" />
+              </div>
+            </>
+          ) : (
+            <div className="mt-1 text-lg font-medium text-gray-400">Sin evaluar todavía</div>
+          )}
         </Card>
 
         <Card>
@@ -83,8 +102,14 @@ export function Dashboard() {
             <span>Oportunidades</span>
             <span>💼</span>
           </div>
-          <div className="mt-1 text-3xl font-bold">{data.opportunitiesCount}</div>
-          <p className="mt-1 text-sm text-gray-500">Vacantes reales compatibles en LATAM</p>
+          {data.hasProfile ? (
+            <>
+              <div className="mt-1 text-3xl font-bold">{data.opportunitiesCount}</div>
+              <p className="mt-1 text-sm text-gray-500">Vacantes reales compatibles en LATAM</p>
+            </>
+          ) : (
+            <div className="mt-1 text-lg font-medium text-gray-400">Completa tu perfil</div>
+          )}
           <Link to="/transicion" className="mt-3 inline-block text-sm font-medium text-brand-600 hover:underline">
             Ver mapa de transición →
           </Link>
@@ -119,27 +144,35 @@ export function Dashboard() {
 
         <Card>
           <h2 className="mb-4 font-semibold">Distribución de Empleabilidad</h2>
-          <div className="mx-auto h-48 w-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={pieData} dataKey="value" innerRadius={55} outerRadius={80} startAngle={90} endAngle={-270}>
-                  {pieData.map((_, i) => (
-                    <Cell key={i} fill={PIE_COLORS[i]} />
-                  ))}
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="mt-2 grid grid-cols-2 gap-3 text-center">
-            <div className="rounded-lg bg-brand-50 py-2">
-              <div className="text-lg font-semibold text-brand-700">{data.employabilityScore}%</div>
-              <div className="text-xs text-gray-500">Completado</div>
-            </div>
-            <div className="rounded-lg bg-brand-50 py-2">
-              <div className="text-lg font-semibold text-brand-700">{100 - data.employabilityScore}%</div>
-              <div className="text-xs text-gray-500">Por mejorar</div>
-            </div>
-          </div>
+          {data.hasProfile ? (
+            <>
+              <div className="mx-auto h-48 w-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={pieData} dataKey="value" innerRadius={55} outerRadius={80} startAngle={90} endAngle={-270}>
+                      {pieData.map((_, i) => (
+                        <Cell key={i} fill={PIE_COLORS[i]} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-3 text-center">
+                <div className="rounded-lg bg-brand-50 py-2">
+                  <div className="text-lg font-semibold text-brand-700">{data.employabilityScore}%</div>
+                  <div className="text-xs text-gray-500">Completado</div>
+                </div>
+                <div className="rounded-lg bg-brand-50 py-2">
+                  <div className="text-lg font-semibold text-brand-700">{100 - score}%</div>
+                  <div className="text-xs text-gray-500">Por mejorar</div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-gray-500">
+              Se calculará automáticamente cuando completes tu evaluación.
+            </p>
+          )}
         </Card>
       </div>
     </div>

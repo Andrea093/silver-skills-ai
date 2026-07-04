@@ -18,9 +18,13 @@ export function buildProviderSearchLink(provider: string, topic: string): string
   return `https://www.google.com/search?q=${encodeURIComponent(`${provider} curso ${topic}`)}`;
 }
 
-export async function listCourses(params: { category?: string; search?: string }) {
-  const { category, search } = params;
+export async function listCourses(params: { category?: string; search?: string; recommendedSkillNames?: string[] }) {
+  const { category, search, recommendedSkillNames } = params;
   const all = await prisma.course.findMany({ orderBy: [{ featured: "desc" }, { rating: "desc" }] });
+
+  const personalize = Boolean(recommendedSkillNames && recommendedSkillNames.length > 0);
+  const recommended = (recommendedSkillNames || []).map((s) => s.toLowerCase());
+
   return all
     .filter((c) => !category || category === "Todos" || c.category === category)
     .filter((c) => {
@@ -33,7 +37,16 @@ export async function listCourses(params: { category?: string; search?: string }
         tags.some((t) => t.toLowerCase().includes(q))
       );
     })
-    .map((c) => ({ ...c, tags: JSON.parse(c.tags) }));
+    .map((c) => {
+      const tags: string[] = JSON.parse(c.tags);
+      // Once we know the user's own recommended/weak skills (from their assessment), "recommended
+      // for you" reflects that instead of the static catalog-wide featured flag.
+      const featured = personalize
+        ? recommended.some((skill) => tags.some((t) => t.toLowerCase().includes(skill)) || c.category.toLowerCase().includes(skill))
+        : c.featured;
+      return { ...c, tags, featured };
+    })
+    .sort((a, b) => Number(b.featured) - Number(a.featured) || b.rating - a.rating);
 }
 
 export async function searchCoursesByTopic(topic: string) {

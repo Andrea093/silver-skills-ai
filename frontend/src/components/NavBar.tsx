@@ -99,7 +99,9 @@ export function NavBar() {
           {user && (
             <div className="text-right text-sm">
               <div className="font-medium">{user.name}</div>
-              <div className="text-gray-500">Empleabilidad: {user.employabilityScore}%</div>
+              <div className="text-gray-500">
+                {user.hasProfile ? `Empleabilidad: ${user.employabilityScore}%` : "Sin evaluar"}
+              </div>
             </div>
           )}
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-100 text-sm font-semibold text-brand-700">
