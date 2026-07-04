@@ -3,8 +3,12 @@
 #
 # Service names below (silver-skills-backend / silver-skills-frontend) become part of the default
 # *.onrender.com URLs. If either name is already taken, Render will suffix it (e.g. -a1b2) and you
-# MUST update the two places that hardcode the other service's URL: this file's `routes` rewrite
-# destination, and the backend's CLIENT_ORIGIN env var in the Render dashboard.
+# MUST update the two places that hardcode the other service's URL: the frontend's
+# VITE_API_BASE_URL build env var below, and the backend's CLIENT_ORIGIN env var.
+#
+# Frontend and backend are on different onrender.com subdomains, so the frontend calls the
+# backend directly (cross-origin, with credentials) instead of relying on a same-origin proxy —
+# Render's static-site path rewrite to another Render service proved unreliable in testing.
 
 databases:
   - name: silver-skills-db
@@ -19,6 +23,8 @@ services:
     buildCommand: npm install && npm run build:prod
     startCommand: npm start
     envVars:
+      - key: NODE_ENV
+        value: production
       - key: JWT_SECRET
         generateValue: true
       - key: DATABASE_URL
@@ -43,10 +49,10 @@ services:
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://silver-skills-backend.onrender.com/api
     routes:
-      - type: rewrite
-        source: /api/*
-        destination: https://silver-skills-backend.onrender.com/api/*
       - type: rewrite
         source: /*
         destination: /index.html

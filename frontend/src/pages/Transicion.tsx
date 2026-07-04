@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
-import { api } from "../lib/api";
+import { api, API_BASE } from "../lib/api";
 import { Card, ProgressBar, Badge } from "../components/ui";
 import { NormalizedJob, PortalSearchLink } from "../types";
 
@@ -92,7 +92,7 @@ export function Transicion() {
         setGenerateError("Selecciona una vacante para adaptar tu CV");
         return;
       }
-      const res = await fetch("/api/cv/generate", {
+      const res = await fetch(`${API_BASE}/cv/generate`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

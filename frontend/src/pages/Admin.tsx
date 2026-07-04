@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { api } from "../lib/api";
+import { api, API_BASE } from "../lib/api";
 import { Card, Badge } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
 
@@ -63,7 +63,7 @@ export function Admin() {
     if (!window.confirm(`¿Eliminar la cuenta de ${email}? Esta acción no se puede deshacer.`)) return;
     setBusyId(id);
     try {
-      const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE", credentials: "include" });
+      const res = await fetch(`${API_BASE}/admin/users/${id}`, { method: "DELETE", credentials: "include" });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || "No se pudo eliminar");

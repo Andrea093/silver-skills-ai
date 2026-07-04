@@ -1,4 +1,9 @@
-const BASE = "/api";
+// In local dev this stays "/api" and goes through Vite's dev proxy (see vite.config.ts) to the
+// backend on the same origin. In production the frontend and backend are separate Render
+// services on different subdomains, so VITE_API_BASE_URL is set at build time to the backend's
+// full URL and requests become real cross-origin calls (with credentials + CORS on the backend).
+const BASE = import.meta.env.VITE_API_BASE_URL || "/api";
+export const API_BASE = BASE;
 
 export class ApiError extends Error {
   status: number;

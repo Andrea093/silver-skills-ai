@@ -31,10 +31,14 @@ const registerSchema = z.object({
   password: z.string().min(6),
 });
 
+const isProd = process.env.NODE_ENV === "production";
 const cookieOptions = {
   httpOnly: true,
-  sameSite: "lax" as const,
-  secure: process.env.NODE_ENV === "production",
+  // Frontend and backend live on different onrender.com subdomains in production, so the cookie
+  // must be SameSite=None (requires Secure) to be sent on cross-origin fetch requests. Locally,
+  // Vite's dev proxy makes everything same-origin, so Lax + non-secure works over plain http.
+  sameSite: (isProd ? "none" : "lax") as "none" | "lax",
+  secure: isProd,
   maxAge: 30 * 24 * 60 * 60 * 1000,
 };
 
