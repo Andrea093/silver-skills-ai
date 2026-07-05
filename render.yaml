@@ -20,7 +20,10 @@ services:
     runtime: node
     rootDir: backend
     plan: free
-    buildCommand: npm install && npm run build:prod
+    # --include=dev is required here: NODE_ENV=production (below) makes plain `npm install` skip
+    # devDependencies, but prisma/tsx/typescript (needed to build) are devDependencies. Without
+    # this flag the build fails with "exit 127: command not found" on the first prisma/tsx call.
+    buildCommand: npm install --include=dev && npm run build:prod
     startCommand: npm start
     envVars:
       - key: NODE_ENV
