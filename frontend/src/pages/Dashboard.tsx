@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { TrendingUp, Award, Briefcase, Compass } from "lucide-react";
 import { api } from "../lib/api";
-import { Card, ProgressBar, Badge } from "../components/ui";
+import { Card, ProgressBar, Badge, Button } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
 
 interface DashboardData {
@@ -14,7 +15,7 @@ interface DashboardData {
   opportunitiesCount: number;
 }
 
-const PIE_COLORS = ["#2563eb", "#dbeafe"];
+const PIE_COLORS = ["#365e8c", "#d7e0ec"];
 
 export function Dashboard() {
   const { user } = useAuth();
@@ -42,33 +43,30 @@ export function Dashboard() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Bienvenida, {firstName}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Bienvenida, {firstName}</h1>
           <p className="text-gray-500">Tu camino hacia nuevas oportunidades laborales</p>
         </div>
-        <Link
-          to="/evaluacion"
-          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
-        >
-          🧭 {data.hasProfile ? "Actualizar evaluación" : "Completar evaluación"}
+        <Link to="/evaluacion">
+          <Button icon={Compass}>{data.hasProfile ? "Actualizar evaluación" : "Completar evaluación"}</Button>
         </Link>
       </div>
 
       {!data.hasProfile && (
-        <Card className="border-2 border-brand-200 bg-brand-50">
-          <p className="text-sm text-brand-800">
+        <Card className="border border-accent-200 bg-accent-50">
+          <p className="text-sm text-accent-700">
             Aún no tienes una evaluación ni un CV registrado, así que no hay nada personalizado que
-            mostrarte todavía. <Link to="/evaluacion" className="font-medium underline">Completa la evaluación</Link>{" "}
-            o sube tu CV en <Link to="/transicion" className="font-medium underline">Transición</Link> para
+            mostrarte todavía. <Link to="/evaluacion" className="font-semibold underline">Completa la evaluación</Link>{" "}
+            o sube tu CV en <Link to="/transicion" className="font-semibold underline">Transición</Link> para
             ver tu índice de empleabilidad, habilidades y vacantes reales compatibles contigo.
           </p>
         </Card>
       )}
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className={data.hasProfile ? "bg-brand-600 text-white" : "bg-white"}>
-          <div className={`flex items-center justify-between text-sm ${data.hasProfile ? "text-brand-100" : "text-gray-500"}`}>
+        <Card className={data.hasProfile ? "bg-brand-800 text-white" : "bg-white"}>
+          <div className={`flex items-center justify-between text-sm font-medium ${data.hasProfile ? "text-brand-200" : "text-gray-500"}`}>
             <span>Índice de Empleabilidad</span>
-            <span>📈</span>
+            <TrendingUp size={18} strokeWidth={2} />
           </div>
           {data.hasProfile ? (
             <>
@@ -78,39 +76,39 @@ export function Dashboard() {
               </div>
             </>
           ) : (
-            <div className="mt-1 text-lg font-medium text-gray-400">Sin evaluar todavía</div>
+            <div className="mt-1 text-lg font-semibold text-gray-400">Sin evaluar todavía</div>
           )}
         </Card>
 
         <Card>
-          <div className="flex items-center justify-between text-sm text-gray-500">
+          <div className="flex items-center justify-between text-sm font-medium text-gray-500">
             <span>Habilidades Activas</span>
-            <span>🎖️</span>
+            <Award size={18} strokeWidth={2} />
           </div>
-          <div className="mt-1 text-3xl font-bold">{data.activeSkillsCount}</div>
+          <div className="mt-1 text-3xl font-bold text-gray-900">{data.activeSkillsCount}</div>
           <p className="mt-1 text-sm text-gray-500">En tu perfil profesional</p>
           <div className="mt-3 flex flex-wrap gap-1.5">
             {data.skills.slice(0, 2).map((s) => (
               <Badge key={s.name}>{s.name}</Badge>
             ))}
-            {data.skills.length > 2 && <Badge tone="gray">+{data.skills.length - 2}</Badge>}
+            {data.skills.length > 2 && <Badge tone="neutral">+{data.skills.length - 2}</Badge>}
           </div>
         </Card>
 
         <Card>
-          <div className="flex items-center justify-between text-sm text-gray-500">
+          <div className="flex items-center justify-between text-sm font-medium text-gray-500">
             <span>Oportunidades</span>
-            <span>💼</span>
+            <Briefcase size={18} strokeWidth={2} />
           </div>
           {data.hasProfile ? (
             <>
-              <div className="mt-1 text-3xl font-bold">{data.opportunitiesCount}</div>
+              <div className="mt-1 text-3xl font-bold text-gray-900">{data.opportunitiesCount}</div>
               <p className="mt-1 text-sm text-gray-500">Vacantes reales compatibles en LATAM</p>
             </>
           ) : (
-            <div className="mt-1 text-lg font-medium text-gray-400">Completa tu perfil</div>
+            <div className="mt-1 text-lg font-semibold text-gray-400">Completa tu perfil</div>
           )}
-          <Link to="/transicion" className="mt-3 inline-block text-sm font-medium text-brand-600 hover:underline">
+          <Link to="/transicion" className="mt-3 inline-block text-sm font-semibold text-brand-700 hover:underline">
             Ver mapa de transición →
           </Link>
         </Card>
@@ -122,7 +120,7 @@ export function Dashboard() {
           {data.skills.length === 0 ? (
             <p className="text-sm text-gray-500">
               Aún no tienes habilidades registradas.{" "}
-              <Link to="/evaluacion" className="text-brand-600 hover:underline">
+              <Link to="/evaluacion" className="font-medium text-brand-700 hover:underline">
                 Completa tu evaluación
               </Link>
               .
@@ -159,11 +157,11 @@ export function Dashboard() {
               </div>
               <div className="mt-2 grid grid-cols-2 gap-3 text-center">
                 <div className="rounded-lg bg-brand-50 py-2">
-                  <div className="text-lg font-semibold text-brand-700">{data.employabilityScore}%</div>
+                  <div className="text-lg font-semibold text-brand-800">{data.employabilityScore}%</div>
                   <div className="text-xs text-gray-500">Completado</div>
                 </div>
                 <div className="rounded-lg bg-brand-50 py-2">
-                  <div className="text-lg font-semibold text-brand-700">{100 - score}%</div>
+                  <div className="text-lg font-semibold text-brand-800">{100 - score}%</div>
                   <div className="text-xs text-gray-500">Por mejorar</div>
                 </div>
               </div>

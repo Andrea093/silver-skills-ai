@@ -16,11 +16,11 @@ html[data-text-scale="xl"] {
 }
 
 body {
-  @apply bg-gray-50 text-gray-900;
+  @apply bg-gray-50 text-gray-900 font-sans antialiased;
 }
 
 /* More visible keyboard focus than the browser default, for easier navigation without a mouse. */
 :focus-visible {
-  outline: 3px solid #2563eb;
+  outline: 3px solid #365e8c;
   outline-offset: 2px;
 }

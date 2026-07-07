@@ -250,16 +250,36 @@ async function main() {
     },
   });
 
+  const demoSkills = [
+    { name: "Liderazgo", level: 85 },
+    { name: "Excel", level: 70 },
+    { name: "Comunicación", level: 90 },
+    { name: "IA Generativa", level: 45 },
+    { name: "Gestión", level: 80 },
+  ];
+
   await prisma.skill.deleteMany({ where: { userId: demoUser.id } });
   await prisma.skill.createMany({
-    data: [
-      { userId: demoUser.id, name: "Liderazgo", level: 85 },
-      { userId: demoUser.id, name: "Excel", level: 70 },
-      { userId: demoUser.id, name: "Comunicación", level: 90 },
-      { userId: demoUser.id, name: "IA Generativa", level: 45 },
-      { userId: demoUser.id, name: "Gestión", level: 80 },
-    ],
+    data: demoSkills.map((s) => ({ userId: demoUser.id, ...s })),
   });
+
+  // The demo skills above were inserted directly (not via the /evaluacion wizard), so without an
+  // Assessment row too, /transition has no automationRisk/adaptationPotential to show even though
+  // hasProfile is true from the skills alone — this keeps the demo account internally consistent.
+  const existingDemoAssessment = await prisma.assessment.findFirst({ where: { userId: demoUser.id } });
+  if (!existingDemoAssessment) {
+    await prisma.assessment.create({
+      data: {
+        userId: demoUser.id,
+        answers: JSON.stringify({ seeded: true }),
+        resultSkills: JSON.stringify(demoSkills),
+        automationRisk: 35,
+        adaptationPotential: 82,
+        summary:
+          "Tus fortalezas principales son Comunicación, Liderazgo y Gestión. Hay oportunidad de mejora en IA Generativa. Riesgo de automatización: 35%. Potencial de adaptación: 82%.",
+      },
+    });
+  }
 
   console.log("Seeding admin account...");
   // By default every seed run (including on each Render redeploy) resets the admin password back

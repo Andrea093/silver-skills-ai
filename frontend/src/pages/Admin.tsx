@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
+import { KeyRound, Sparkles, Trash2 } from "lucide-react";
 import { api, API_BASE } from "../lib/api";
-import { Card, Badge } from "../components/ui";
+import { Card, Badge, Button } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
 
 interface AdminUser {
@@ -79,7 +80,7 @@ export function Admin() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Administración de Usuarios</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Administración de Usuarios</h1>
         <p className="text-gray-500">
           Aquí puedes ver todas las cuentas, restablecer contraseñas de acceso, y activar/desactivar
           Premium.
@@ -87,8 +88,8 @@ export function Admin() {
       </div>
 
       {lastReset && (
-        <Card className="border-2 border-green-300 bg-green-50">
-          <p className="text-sm text-green-800">
+        <Card className="border border-emerald-200 bg-emerald-50">
+          <p className="text-sm text-emerald-800">
             Nueva contraseña temporal para <strong>{lastReset.email}</strong>:{" "}
             <code className="rounded bg-white px-2 py-1 font-mono">{lastReset.tempPassword}</code>
             <br />
@@ -122,41 +123,47 @@ export function Admin() {
                     <td className="py-3 pr-4 font-medium">{u.name}</td>
                     <td className="py-3 pr-4 text-gray-600">{u.email}</td>
                     <td className="py-3 pr-4">
-                      <Badge tone={u.role === "admin" ? "green" : "gray"}>{u.role}</Badge>
+                      <Badge tone={u.role === "admin" ? "success" : "neutral"}>{u.role}</Badge>
                     </td>
                     <td className="py-3 pr-4">
-                      <Badge tone={u.isPremium ? "green" : "gray"}>{u.isPremium ? "Sí" : "No"}</Badge>
+                      <Badge tone={u.isPremium ? "accent" : "neutral"}>{u.isPremium ? "Sí" : "No"}</Badge>
                     </td>
                     <td className="py-3 pr-4 text-gray-500">
                       {new Date(u.createdAt).toLocaleDateString("es-MX")}
                     </td>
                     <td className="py-3 pr-4">
                       <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
+                        <Button
+                          variant="outline"
+                          size="md"
+                          icon={KeyRound}
                           onClick={() => handleReset(u.id)}
                           disabled={busyId === u.id}
-                          className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:border-brand-300 disabled:opacity-50"
+                          className="!px-3 !py-1.5 !text-xs"
                         >
                           Restablecer contraseña
-                        </button>
-                        <button
-                          type="button"
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="md"
+                          icon={Sparkles}
                           onClick={() => handleTogglePremium(u.id)}
                           disabled={busyId === u.id}
-                          className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:border-brand-300 disabled:opacity-50"
+                          className="!px-3 !py-1.5 !text-xs"
                         >
                           {u.isPremium ? "Quitar Premium" : "Dar Premium"}
-                        </button>
+                        </Button>
                         {u.id !== user?.id && (
-                          <button
-                            type="button"
+                          <Button
+                            variant="danger"
+                            size="md"
+                            icon={Trash2}
                             onClick={() => handleDelete(u.id, u.email)}
                             disabled={busyId === u.id}
-                            className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:border-red-400 disabled:opacity-50"
+                            className="!px-3 !py-1.5 !text-xs !shadow-none"
                           >
                             Eliminar
-                          </button>
+                          </Button>
                         )}
                       </div>
                     </td>

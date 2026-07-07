@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
+import { Clock, TrendingUp, UploadCloud, Sparkles, ExternalLink, Bookmark, Check, FileSearch } from "lucide-react";
 import { api, API_BASE } from "../lib/api";
-import { Card, ProgressBar, Badge } from "../components/ui";
+import { Card, ProgressBar, Badge, Button } from "../components/ui";
 import { NormalizedJob, PortalSearchLink } from "../types";
 
 interface TransitionData {
@@ -26,9 +27,9 @@ interface CvAnalysisResult {
 }
 
 function riskLabel(risk: number) {
-  if (risk < 40) return { text: "Bajo riesgo", tone: "green" as const };
-  if (risk < 70) return { text: "Riesgo moderado", tone: "gray" as const };
-  return { text: "Riesgo alto", tone: "gray" as const };
+  if (risk < 40) return { text: "Bajo riesgo", tone: "success" as const };
+  if (risk < 70) return { text: "Riesgo moderado", tone: "neutral" as const };
+  return { text: "Riesgo alto", tone: "neutral" as const };
 }
 
 function adaptationLabel(potential: number) {
@@ -144,9 +145,9 @@ export function Transicion() {
           if (file) handleFile(file);
         }}
         onClick={() => fileInputRef.current?.click()}
-        className="cursor-pointer rounded-xl border-2 border-dashed border-gray-300 p-10 text-center transition hover:border-brand-400"
+        className="cursor-pointer rounded-xl border-2 border-dashed border-gray-300 p-10 text-center transition-colors hover:border-brand-400 hover:bg-brand-50/40"
       >
-        <div className="text-3xl">⬆️</div>
+        <UploadCloud className="mx-auto text-brand-600" size={32} strokeWidth={1.75} />
         <p className="mt-2 font-medium">Arrastra tu CV aquí o haz clic para seleccionar</p>
         <p className="text-sm text-gray-500">Formatos soportados: PDF, DOC, DOCX (máx. 5MB)</p>
         <input
@@ -167,7 +168,7 @@ export function Transicion() {
         <div className="mt-4 space-y-3 rounded-xl border border-gray-200 p-4">
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-500">Puntaje ATS estimado</span>
-            <span className="text-lg font-semibold text-brand-700">{cvResult.atsScore}%</span>
+            <span className="text-lg font-semibold text-brand-800">{cvResult.atsScore}%</span>
           </div>
           <ProgressBar value={cvResult.atsScore} />
           {cvResult.extractedSkills.length > 0 && (
@@ -190,15 +191,15 @@ export function Transicion() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Mapa de Transición Laboral</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Mapa de Transición Laboral</h1>
         <p className="text-gray-500">Descubre oportunidades compatibles con tu perfil en el mercado latinoamericano</p>
       </div>
 
       {!data.hasProfile && (
-        <Card className="border-2 border-brand-200 bg-brand-50">
-          <p className="text-sm text-brand-800">
+        <Card className="border border-accent-200 bg-accent-50">
+          <p className="text-sm text-accent-700">
             Todo lo de esta página depende de tu perfil, y aún no tienes uno.{" "}
-            <Link to="/evaluacion" className="font-medium underline">Completa la evaluación</Link>{" "}
+            <Link to="/evaluacion" className="font-semibold underline">Completa la evaluación</Link>{" "}
             o sube tu CV abajo para ver tu riesgo de automatización, potencial de adaptación y vacantes
             reales compatibles contigo — sin eso no podemos mostrarte nada personalizado.
           </p>
@@ -208,8 +209,8 @@ export function Transicion() {
       {data.hasProfile && (
         <div className="grid gap-4 md:grid-cols-2">
           <Card>
-            <div className="mb-1 flex items-center gap-2 text-sm text-gray-500">
-              <span>⏱️</span>
+            <div className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-500">
+              <Clock size={16} strokeWidth={2} />
               <span>Riesgo de Automatización</span>
             </div>
             <p className="text-xs text-gray-500">De tus habilidades actuales</p>
@@ -224,14 +225,14 @@ export function Transicion() {
           </Card>
 
           <Card>
-            <div className="mb-1 flex items-center gap-2 text-sm text-gray-500">
-              <span>📈</span>
+            <div className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-500">
+              <TrendingUp size={16} strokeWidth={2} />
               <span>Potencial de Adaptación</span>
             </div>
             <p className="text-xs text-gray-500">Capacidad de reentrenamiento</p>
             <div className="my-3 flex items-center gap-3">
               <span className="text-3xl font-bold">{data.adaptationPotential}%</span>
-              <Badge tone="green">{adaptationLabel(data.adaptationPotential!)}</Badge>
+              <Badge tone="success">{adaptationLabel(data.adaptationPotential!)}</Badge>
             </div>
             <ProgressBar value={data.adaptationPotential!} />
             <p className="mt-3 text-sm text-gray-500">
@@ -249,7 +250,7 @@ export function Transicion() {
               <XAxis dataKey="sector" tick={{ fontSize: 12 }} />
               <YAxis tick={{ fontSize: 12 }} />
               <Tooltip />
-              <Bar dataKey="value" fill="#2563eb" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="value" fill="#365e8c" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -261,7 +262,7 @@ export function Transicion() {
             <Card>
               <div className="text-sm font-medium text-gray-700">Tu Nivel Actual</div>
               <p className="text-xs text-gray-500">Basado en tu experiencia y evaluación</p>
-              <div className="mt-2 text-2xl font-bold text-brand-700">{data.currentLevel}%</div>
+              <div className="mt-2 text-2xl font-bold text-brand-800">{data.currentLevel}%</div>
             </Card>
             <Card>
               <div className="text-sm font-medium text-gray-700">Nivel Requerido</div>
@@ -270,8 +271,8 @@ export function Transicion() {
             </Card>
           </div>
 
-          <Card className="bg-brand-50">
-            <p className="text-sm text-brand-800">
+          <Card className="border border-brand-100 bg-brand-50">
+            <p className="text-sm text-brand-900">
               <strong>Recomendación:</strong> Prioriza mejorar tus habilidades digitales relacionadas con{" "}
               <strong>{data.topSkill}</strong> para alcanzar el nivel requerido en las oportunidades más demandadas.
             </p>
@@ -282,9 +283,9 @@ export function Transicion() {
       {cvUploadCard}
 
       {cvResult && (
-        <Card className="border-2 border-brand-200 bg-white">
+        <Card className="border border-accent-200 bg-white">
           <div className="mb-1 flex items-center gap-2">
-            <Badge>✨ Premium</Badge>
+            <Badge tone="accent" icon={Sparkles}>Premium</Badge>
             <h2 className="font-semibold">Generar CV Optimizado</h2>
           </div>
           <p className="mb-4 text-sm text-gray-500">
@@ -296,8 +297,11 @@ export function Transicion() {
 
           <div className="flex flex-wrap items-end gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Tipo de CV</label>
+              <label htmlFor="cv-mode" className="mb-1 block text-sm font-medium text-gray-700">
+                Tipo de CV
+              </label>
               <select
+                id="cv-mode"
                 value={generateMode}
                 onChange={(e) => setGenerateMode(e.target.value as "ats" | "vacancy")}
                 className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
@@ -308,8 +312,11 @@ export function Transicion() {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Formato</label>
+              <label htmlFor="cv-format" className="mb-1 block text-sm font-medium text-gray-700">
+                Formato
+              </label>
               <select
+                id="cv-format"
                 value={generateFormat}
                 onChange={(e) => setGenerateFormat(e.target.value as "docx" | "pdf")}
                 className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
@@ -321,8 +328,11 @@ export function Transicion() {
 
             {generateMode === "vacancy" && (
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Vacante objetivo</label>
+                <label htmlFor="cv-job" className="mb-1 block text-sm font-medium text-gray-700">
+                  Vacante objetivo
+                </label>
                 <select
+                  id="cv-job"
                   value={selectedJobKey}
                   onChange={(e) => setSelectedJobKey(e.target.value)}
                   className="min-w-64 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
@@ -340,14 +350,9 @@ export function Transicion() {
               </div>
             )}
 
-            <button
-              type="button"
-              onClick={handleGenerateCv}
-              disabled={generating}
-              className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-            >
+            <Button variant="secondary" onClick={handleGenerateCv} disabled={generating}>
               {generating ? "Generando..." : `Generar y descargar .${generateFormat}`}
-            </button>
+            </Button>
           </div>
           {generateError && <p className="mt-3 text-sm text-red-600">{generateError}</p>}
         </Card>
@@ -374,7 +379,7 @@ export function Transicion() {
                         </div>
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {job.tags.slice(0, 5).map((t) => (
-                            <Badge key={t} tone="gray">
+                            <Badge key={t} tone="neutral">
                               {t}
                             </Badge>
                           ))}
@@ -382,22 +387,19 @@ export function Transicion() {
                         </div>
                       </div>
                       <div className="flex flex-col gap-2">
-                        <a
-                          href={job.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="rounded-lg bg-brand-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-brand-700"
-                        >
-                          Ver oferta ↗
+                        <a href={job.url} target="_blank" rel="noopener noreferrer">
+                          <Button size="md" icon={ExternalLink} iconPosition="right" className="w-full">
+                            Ver oferta
+                          </Button>
                         </a>
-                        <button
-                          type="button"
+                        <Button
+                          variant="outline"
                           onClick={() => handleSave(job)}
                           disabled={isSaved}
-                          className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:border-brand-300 disabled:opacity-50"
+                          icon={isSaved ? Check : Bookmark}
                         >
-                          {isSaved ? "Guardado ✓" : "Guardar"}
-                        </button>
+                          {isSaved ? "Guardado" : "Guardar"}
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -407,7 +409,10 @@ export function Transicion() {
           )}
 
           <div className="mt-5 border-t border-gray-100 pt-5">
-            <p className="mb-3 text-sm font-medium text-gray-700">Buscar más directamente en los portales principales</p>
+            <p className="mb-3 flex items-center gap-1.5 text-sm font-medium text-gray-700">
+              <FileSearch size={16} strokeWidth={2} />
+              Buscar más directamente en los portales principales
+            </p>
             <div className="flex flex-wrap gap-2">
               {data.portalLinks.map((link) => (
                 <a
@@ -415,9 +420,10 @@ export function Transicion() {
                   href={link.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded-full border border-gray-300 px-4 py-1.5 text-sm text-gray-600 hover:border-brand-400 hover:text-brand-700"
+                  className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3.5 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:border-brand-400 hover:text-brand-700"
                 >
-                  {link.portal} ↗
+                  {link.portal}
+                  <ExternalLink size={13} strokeWidth={2.25} />
                 </a>
               ))}
             </div>

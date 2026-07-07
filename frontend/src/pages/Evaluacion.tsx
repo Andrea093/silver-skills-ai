@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { ArrowLeft, ArrowRight, Sparkles, TrendingUp } from "lucide-react";
 import { api } from "../lib/api";
-import { Card, ProgressBar, Badge } from "../components/ui";
+import { Card, ProgressBar, Badge, Button } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
 
 interface WizardStep {
@@ -23,7 +24,7 @@ interface AssessmentResult {
   summary: string;
 }
 
-const PIE_COLORS = ["#2563eb", "#dbeafe"];
+const PIE_COLORS = ["#365e8c", "#d7e0ec"];
 
 export function Evaluacion() {
   const { refresh } = useAuth();
@@ -85,7 +86,7 @@ export function Evaluacion() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold">Resultados de tu Evaluación</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Resultados de tu Evaluación</h1>
           <p className="text-gray-500">{result.summary}</p>
         </div>
 
@@ -120,11 +121,11 @@ export function Evaluacion() {
             </div>
             <div className="mt-2 grid grid-cols-2 gap-3 text-center">
               <div className="rounded-lg bg-brand-50 py-2">
-                <div className="text-lg font-semibold text-brand-700">{result.employabilityScore}%</div>
+                <div className="text-lg font-semibold text-brand-800">{result.employabilityScore}%</div>
                 <div className="text-xs text-gray-500">Completado</div>
               </div>
               <div className="rounded-lg bg-brand-50 py-2">
-                <div className="text-lg font-semibold text-brand-700">{100 - result.employabilityScore}%</div>
+                <div className="text-lg font-semibold text-brand-800">{100 - result.employabilityScore}%</div>
                 <div className="text-xs text-gray-500">Por mejorar</div>
               </div>
             </div>
@@ -137,7 +138,7 @@ export function Evaluacion() {
               <h2 className="font-semibold">Habilidades Recomendadas para Ti</h2>
               <p className="text-sm text-gray-500">Basado en tu experiencia y tendencias del mercado</p>
             </div>
-            <Link to="/cursos" className="text-sm font-medium text-brand-600 hover:underline">
+            <Link to="/cursos" className="text-sm font-semibold text-brand-700 hover:underline">
               Ver cursos →
             </Link>
           </div>
@@ -151,7 +152,7 @@ export function Evaluacion() {
                 <div className="font-medium">{s.name}</div>
                 <div className="mt-1 flex gap-2">
                   <Badge>{s.demand}</Badge>
-                  <Badge tone="green">+{s.growthPct}%</Badge>
+                  <Badge tone="success" icon={TrendingUp}>+{s.growthPct}%</Badge>
                 </div>
               </Link>
             ))}
@@ -159,12 +160,9 @@ export function Evaluacion() {
         </Card>
 
         <div className="flex justify-end gap-3">
-          <button
-            onClick={() => navigate("/transicion")}
-            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
-          >
-            Ver Mapa de Transición Laboral →
-          </button>
+          <Button onClick={() => navigate("/transicion")} icon={ArrowRight} iconPosition="right">
+            Ver Mapa de Transición Laboral
+          </Button>
         </div>
       </div>
     );
@@ -173,8 +171,8 @@ export function Evaluacion() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="text-center">
-        <Badge>✨ Evaluación con IA</Badge>
-        <h1 className="mt-2 text-2xl font-semibold">Descubre tu Potencial</h1>
+        <Badge icon={Sparkles}>Evaluación con IA</Badge>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight">Descubre tu Potencial</h1>
         <p className="text-gray-500">
           Esta evaluación nos ayuda a personalizar tu experiencia y recomendarte las mejores
           oportunidades
@@ -219,7 +217,7 @@ export function Evaluacion() {
                   max={100}
                   value={skillLevels[opt] ?? 50}
                   onChange={(e) => setSkillLevels({ ...skillLevels, [opt]: Number(e.target.value) })}
-                  className="w-full accent-brand-600"
+                  className="w-full accent-brand-700"
                 />
               </div>
             ))}
@@ -237,9 +235,9 @@ export function Evaluacion() {
                   onClick={() =>
                     setInterests(selected ? interests.filter((i) => i !== opt) : [...interests, opt])
                   }
-                  className={`rounded-full border px-4 py-2 text-sm transition ${
+                  className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
                     selected
-                      ? "border-brand-600 bg-brand-600 text-white"
+                      ? "border-brand-700 bg-brand-700 text-white"
                       : "border-gray-300 text-gray-600 hover:border-brand-300"
                   }`}
                 >
@@ -253,10 +251,11 @@ export function Evaluacion() {
         {step.type === "goal-form" && (
           <div className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+              <label htmlFor="eval-goal" className="mb-1 block text-sm font-medium text-gray-700">
                 ¿Qué buscas lograr?
               </label>
               <input
+                id="eval-goal"
                 value={goal}
                 onChange={(e) => setGoal(e.target.value)}
                 placeholder="Ej. Cambiar de carrera hacia consultoría digital"
@@ -264,36 +263,40 @@ export function Evaluacion() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+              <label htmlFor="eval-hours" className="mb-1 block text-sm font-medium text-gray-700">
                 Horas semanales disponibles para aprender: {weeklyHours}h
               </label>
               <input
+                id="eval-hours"
                 type="range"
                 min={0}
                 max={20}
                 value={weeklyHours}
                 onChange={(e) => setWeeklyHours(Number(e.target.value))}
-                className="w-full accent-brand-600"
+                className="w-full accent-brand-700"
               />
             </div>
           </div>
         )}
 
         <div className="mt-6 flex justify-between">
-          <button
+          <Button
+            variant="ghost"
             disabled={stepIndex === 0}
             onClick={() => setStepIndex(stepIndex - 1)}
-            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-500 disabled:opacity-0"
+            icon={ArrowLeft}
+            className={stepIndex === 0 ? "invisible" : ""}
           >
-            ← Atrás
-          </button>
-          <button
+            Atrás
+          </Button>
+          <Button
             onClick={handleNext}
             disabled={submitting || (step.type === "textarea" && !experienceText.trim())}
-            className="rounded-lg bg-brand-600 px-5 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+            icon={stepIndex === steps.length - 1 ? undefined : ArrowRight}
+            iconPosition="right"
           >
-            {submitting ? "Analizando..." : stepIndex === steps.length - 1 ? "Finalizar" : "Siguiente →"}
-          </button>
+            {submitting ? "Analizando..." : stepIndex === steps.length - 1 ? "Finalizar" : "Siguiente"}
+          </Button>
         </div>
       </Card>
     </div>
