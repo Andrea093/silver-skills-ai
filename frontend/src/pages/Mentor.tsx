@@ -122,8 +122,17 @@ export function Mentor() {
       { id: `local-${Date.now()}`, role: "user", content: text, cards: [], createdAt: new Date().toISOString() },
     ]);
     try {
-      const res = await api.post<ChatMessage>("/mentor/chat", { message: text });
-      setMessages((prev) => [...prev, res]);
+      // POST /mentor/chat responds with {id, message, cards, createdAt} — not the same shape as
+      // the ChatMessage rows returned by GET /mentor/history (which have role/content). Map it
+      // explicitly instead of trusting the generic type param, or the bubble renders with no text.
+      const res = await api.post<{ id: string; message: string; cards: ChatMessage["cards"]; createdAt: string }>(
+        "/mentor/chat",
+        { message: text }
+      );
+      setMessages((prev) => [
+        ...prev,
+        { id: res.id, role: "assistant", content: res.message, cards: res.cards, createdAt: res.createdAt },
+      ]);
     } finally {
       setSending(false);
     }
