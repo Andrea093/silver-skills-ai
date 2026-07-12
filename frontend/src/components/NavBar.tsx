@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { Home, Compass, TrendingUp, RefreshCw, BookOpen, Sparkles, ShieldCheck, LogOut, Type } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { applyTextScale, getStoredTextScale, nextTextScale, TextScale } from "../lib/textScale";
@@ -52,6 +52,12 @@ function TextScaleToggle() {
 
 export function NavBar() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  async function handleLogout() {
+    await logout();
+    navigate("/");
+  }
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors ${
@@ -101,7 +107,7 @@ export function NavBar() {
           </div>
           <button
             type="button"
-            onClick={() => logout()}
+            onClick={handleLogout}
             className="inline-flex items-center gap-1 rounded-lg px-2.5 py-2 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
             title="Cerrar sesión"
           >

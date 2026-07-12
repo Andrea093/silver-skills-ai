@@ -19,6 +19,19 @@ export interface JobSearchOptions {
   modality?: Modality;
 }
 
+// A vacancy posted months ago is very likely already filled or stale — showing it as a "real
+// compatible opportunity" would be misleading, so every source is filtered to only what's actually
+// recent relative to the moment of the search, not just relative to some fixed catalog snapshot.
+const MAX_JOB_AGE_DAYS = 30;
+
+function isRecent(dateStr: string | undefined, maxDays = MAX_JOB_AGE_DAYS): boolean {
+  if (!dateStr) return false;
+  const posted = new Date(dateStr).getTime();
+  if (Number.isNaN(posted)) return false;
+  const ageMs = Date.now() - posted;
+  return ageMs >= 0 && ageMs <= maxDays * 24 * 60 * 60 * 1000;
+}
+
 function matchesModality(text: string, modality: Modality | undefined): boolean {
   if (!modality || modality === "any") return true;
   const t = text.toLowerCase();
@@ -87,7 +100,7 @@ async function searchRemotive(query: string, opts: JobSearchOptions): Promise<No
     const jobs = Array.isArray(data.jobs) ? data.jobs : [];
     const filtered = jobs.filter((j: any) => {
       const haystack = `${j.title} ${j.category || ""} ${(j.tags || []).join(" ")}`;
-      return queryMatches(haystack, query);
+      return queryMatches(haystack, query) && isRecent(j.publication_date);
     });
     return filtered.slice(0, 10).map((j: any) => ({
       source: "remotive" as const,
@@ -122,6 +135,7 @@ async function searchArbeitnow(query: string, opts: JobSearchOptions): Promise<N
       if (!queryMatches(haystack, query)) return false;
       if (opts.modality === "remote" && !j.remote) return false;
       if ((opts.modality === "hybrid" || opts.modality === "onsite") && j.remote) return false;
+      if (!isRecent(j.created_at ? new Date(j.created_at * 1000).toISOString() : undefined)) return false;
       return true;
     });
     return filtered.slice(0, 10).map((j: any) => ({
@@ -178,7 +192,7 @@ async function searchAdzuna(query: string, country: string, opts: JobSearchOptio
         postedAt: j.created,
         description: stripHtml(j.description),
       }))
-      .filter((j: NormalizedJob) => matchesModality(`${j.title} ${j.description || ""}`, opts.modality));
+      .filter((j: NormalizedJob) => matchesModality(`${j.title} ${j.description || ""}`, opts.modality) && isRecent(j.postedAt));
   } catch {
     return [];
   }
@@ -215,7 +229,7 @@ async function searchJooble(query: string, opts: JobSearchOptions): Promise<Norm
         postedAt: j.updated,
         description: stripHtml(j.snippet),
       }))
-      .filter((j: NormalizedJob) => matchesModality(`${j.title} ${j.description || ""}`, opts.modality));
+      .filter((j: NormalizedJob) => matchesModality(`${j.title} ${j.description || ""}`, opts.modality) && isRecent(j.postedAt));
   } catch {
     return [];
   }
@@ -373,7 +387,9 @@ async function searchSpeColombia(query: string, country: string, opts: JobSearch
     if (opts.modality === "onsite") params.set("TELETRABAJO", "0");
 
     const data = await speFetchJson(`${SPE_BASE}/vacantes/resultados?${params.toString()}`);
-    let jobs = Array.isArray(data.resultados) ? data.resultados : [];
+    let jobs = (Array.isArray(data.resultados) ? data.resultados : []).filter((j: any) =>
+      isRecent(j.FECHA_PUBLICACION)
+    );
     if (specialtyQuery) {
       jobs = [...jobs].sort((a: any, b: any) => {
         const score = (j: any) => (queryMatches(`${j.CARGO || ""} ${j.DESCRIPCION_VACANTE || ""}`, specialtyQuery) ? 1 : 0);
