@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
-import { Clock, TrendingUp, Sparkles, ExternalLink, Bookmark, Check, FileSearch, Search } from "lucide-react";
+import { Clock, TrendingUp, Sparkles, ExternalLink, Bookmark, Check, FileSearch, Search, Info, Target } from "lucide-react";
 import { api, API_BASE } from "../lib/api";
 import { Card, ProgressBar, Badge, Button } from "../components/ui";
 import { CvDropzone } from "../components/CvDropzone";
@@ -16,6 +16,8 @@ interface TransitionData {
   requiredLevel: number;
   topSkill: string | null;
   jobSearchQuery: string | null;
+  focusMode: "current" | "goal";
+  goalTarget: string | null;
   jobs: NormalizedJob[];
   portalLinks: PortalSearchLink[];
 }
@@ -145,6 +147,31 @@ export function Transicion() {
         <p className="text-gray-500">Descubre oportunidades compatibles con tu perfil en el mercado latinoamericano</p>
       </div>
 
+      <Card className="border border-brand-100 bg-brand-50/60">
+        <div className="mb-2 flex items-center gap-2 text-brand-900">
+          <Info size={17} strokeWidth={2.25} />
+          <h2 className="font-semibold">Cómo leer este mapa</h2>
+        </div>
+        <ul className="space-y-1.5 text-sm text-brand-900">
+          <li>
+            <strong>Riesgo de Automatización:</strong> qué tan probable es que tareas de tu perfil
+            actual sean reemplazadas por tecnología — más bajo es mejor.
+          </li>
+          <li>
+            <strong>Potencial de Adaptación:</strong> tu capacidad de aprender y moverte hacia
+            nuevas oportunidades, según tu experiencia y disponibilidad para formarte.
+          </li>
+          <li>
+            <strong>Sectores con Mayor Crecimiento:</strong> qué áreas están generando más empleo en
+            LATAM ahora mismo — útil como referencia general, no depende de tu perfil.
+          </li>
+          <li>
+            <strong>Nivel Actual vs. Requerido:</strong> compara tu nivel de habilidades hoy contra
+            lo que el mercado suele pedir para las oportunidades más demandadas.
+          </li>
+        </ul>
+      </Card>
+
       {!data.hasProfile && (
         <Card className="border border-accent-200 bg-accent-50">
           <p className="text-sm text-accent-700">
@@ -206,11 +233,27 @@ export function Transicion() {
         </div>
       </Card>
 
+      {data.hasProfile && data.focusMode === "goal" && data.goalTarget && (
+        <Card className="border border-accent-200 bg-accent-50">
+          <div className="mb-1 flex items-center gap-2 text-accent-700">
+            <Target size={17} strokeWidth={2.25} />
+            <h2 className="font-semibold">Tu meta: {data.goalTarget}</h2>
+          </div>
+          <p className="text-sm text-accent-700">
+            Nos dijiste que buscas dar un giro hacia esto, así que el mapa de abajo se enfoca en esa
+            meta en vez de tu posición actual — la búsqueda de vacantes y las recomendaciones apuntan
+            a {data.goalTarget}.
+          </p>
+        </Card>
+      )}
+
       {data.hasProfile && (
         <>
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
-              <div className="text-sm font-medium text-gray-700">Tu Nivel Actual</div>
+              <div className="text-sm font-medium text-gray-700">
+                {data.focusMode === "goal" ? "Tu Nivel de Partida" : "Tu Nivel Actual"}
+              </div>
               <p className="text-xs text-gray-500">Basado en tu experiencia y evaluación</p>
               <div className="mt-2 text-2xl font-bold text-brand-800">{data.currentLevel}%</div>
             </Card>
@@ -223,8 +266,19 @@ export function Transicion() {
 
           <Card className="border border-brand-100 bg-brand-50">
             <p className="text-sm text-brand-900">
-              <strong>Recomendación:</strong> Prioriza mejorar tus habilidades digitales relacionadas con{" "}
-              <strong>{data.topSkill}</strong> para alcanzar el nivel requerido en las oportunidades más demandadas.
+              <strong>Recomendación:</strong>{" "}
+              {data.focusMode === "goal" && data.goalTarget ? (
+                <>
+                  Prioriza las habilidades que pide <strong>{data.goalTarget}</strong> — revisa las
+                  vacantes y cursos de abajo para identificar cuáles te faltan y empezar a cerrarlas.
+                </>
+              ) : (
+                <>
+                  Prioriza mejorar tus habilidades digitales relacionadas con{" "}
+                  <strong>{data.topSkill}</strong> para alcanzar el nivel requerido en las
+                  oportunidades más demandadas.
+                </>
+              )}
             </p>
           </Card>
         </>

@@ -4,6 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/requireAuth";
 import { computeAssessment, heuristicSummary, detectSkillLevels, WIZARD_STEPS } from "../services/assessmentScoring";
+import { parseCvSections } from "../services/cvParser";
 import { env, isMentorAgentEnabled } from "../lib/env";
 
 export const assessmentRouter = Router();
@@ -15,12 +16,22 @@ assessmentRouter.get("/steps", (_req, res) => {
 const detectSkillsSchema = z.object({
   experienceText: z.string().min(1),
   cvExtractedSkills: z.array(z.string()).optional(),
+  cvAnalysisId: z.string().optional(),
 });
 
-assessmentRouter.post("/detect-skills", requireAuth, (req, res) => {
+assessmentRouter.post("/detect-skills", requireAuth, async (req, res) => {
   const parsed = detectSkillsSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Datos inválidos" });
-  const skills = detectSkillLevels(parsed.data.experienceText, parsed.data.cvExtractedSkills || []);
+
+  let cvExperience: ReturnType<typeof parseCvSections>["experience"] = [];
+  if (parsed.data.cvAnalysisId) {
+    const cv = await prisma.cvAnalysis.findFirst({
+      where: { id: parsed.data.cvAnalysisId, userId: req.userId! },
+    });
+    if (cv) cvExperience = parseCvSections(cv.rawText).experience;
+  }
+
+  const skills = detectSkillLevels(parsed.data.experienceText, parsed.data.cvExtractedSkills || [], cvExperience);
   res.json({ skills });
 });
 

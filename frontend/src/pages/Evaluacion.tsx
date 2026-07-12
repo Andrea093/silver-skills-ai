@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { ArrowLeft, ArrowRight, Sparkles, TrendingUp, CheckCircle2, FileText } from "lucide-react";
+import { ArrowLeft, ArrowRight, Sparkles, TrendingUp, CheckCircle2, FileText, RefreshCw, AlertCircle } from "lucide-react";
 import { api } from "../lib/api";
 import { Card, ProgressBar, Badge, Button } from "../components/ui";
 import { CvDropzone } from "../components/CvDropzone";
@@ -38,6 +38,7 @@ export function Evaluacion() {
   const [skillLevels, setSkillLevels] = useState<Record<string, number>>({});
   const [detectedSkills, setDetectedSkills] = useState<Set<string>>(new Set());
   const [detectingSkills, setDetectingSkills] = useState(false);
+  const [detectSkillsError, setDetectSkillsError] = useState(false);
   const [interests, setInterests] = useState<string[]>([]);
   const [goal, setGoal] = useState("");
   const [weeklyHours, setWeeklyHours] = useState(5);
@@ -61,12 +62,13 @@ export function Evaluacion() {
   const step = steps[stepIndex];
   const progressPct = Math.round(((stepIndex + 1) / steps.length) * 100);
 
-  async function detectSkills() {
+  async function detectSkills(): Promise<boolean> {
     setDetectingSkills(true);
+    setDetectSkillsError(false);
     try {
       const res = await api.post<{ skills: { name: string; level: number; detected: boolean }[] }>(
         "/assessment/detect-skills",
-        { experienceText, cvExtractedSkills: cvResult?.extractedSkills || [] }
+        { experienceText, cvExtractedSkills: cvResult?.extractedSkills || [], cvAnalysisId: cvResult?.id }
       );
       const levels: Record<string, number> = {};
       const detected = new Set<string>();
@@ -79,8 +81,13 @@ export function Evaluacion() {
       setSteps((prev) =>
         prev.map((s) => (s.type === "skill-sliders" ? { ...s, options: res.skills.map((sk) => sk.name) } : s))
       );
+      return true;
     } catch {
-      // keep whatever defaults were already loaded — the person can still adjust sliders manually
+      // The sliders are read-only (values come purely from detection), so unlike a manual-override
+      // UI there's no fallback to "let the person adjust it themselves" — surface the failure and
+      // require a successful retry before letting them proceed.
+      setDetectSkillsError(true);
+      return false;
     } finally {
       setDetectingSkills(false);
     }
@@ -89,7 +96,8 @@ export function Evaluacion() {
   async function handleNext() {
     const nextStep = steps[stepIndex + 1];
     if (nextStep?.type === "skill-sliders") {
-      await detectSkills();
+      const ok = await detectSkills();
+      if (!ok) return;
     }
     if (stepIndex < steps.length - 1) {
       setStepIndex(stepIndex + 1);
@@ -278,29 +286,38 @@ export function Evaluacion() {
         {step.type === "skill-sliders" && (
           <div className="space-y-4">
             {detectingSkills && <p className="text-sm text-gray-500">Detectando habilidades de tu experiencia y CV...</p>}
-            {step.options?.map((opt) => (
-              <div key={opt}>
-                <div className="mb-1 flex items-center justify-between text-sm">
-                  <span className="flex items-center gap-1.5">
-                    {opt}
-                    {detectedSkills.has(opt) && (
-                      <span title="Detectado automáticamente">
-                        <CheckCircle2 size={13} strokeWidth={2.5} className="text-emerald-600" />
-                      </span>
-                    )}
-                  </span>
-                  <span className="text-gray-500">{skillLevels[opt] ?? 40}%</span>
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={skillLevels[opt] ?? 40}
-                  onChange={(e) => setSkillLevels({ ...skillLevels, [opt]: Number(e.target.value) })}
-                  className="w-full accent-brand-700"
-                />
+            {detectSkillsError && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-3">
+                <p className="flex items-center gap-1.5 text-sm text-red-700">
+                  <AlertCircle size={15} strokeWidth={2.25} />
+                  No pudimos detectar tus habilidades. Inténtalo de nuevo.
+                </p>
+                <Button size="md" variant="outline" icon={RefreshCw} onClick={() => detectSkills()}>
+                  Reintentar detección
+                </Button>
               </div>
-            ))}
+            )}
+            <p className="text-xs text-gray-500">
+              Estos niveles se detectan automáticamente de tu experiencia y tu CV — no se editan
+              manualmente, para que reflejen evidencia real y no una estimación propia.
+            </p>
+            {!detectSkillsError &&
+              step.options?.map((opt) => (
+                <div key={opt}>
+                  <div className="mb-1 flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-1.5">
+                      {opt}
+                      {detectedSkills.has(opt) && (
+                        <span title="Detectado automáticamente">
+                          <CheckCircle2 size={13} strokeWidth={2.5} className="text-emerald-600" />
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-gray-500">{skillLevels[opt] ?? 40}%</span>
+                  </div>
+                  <ProgressBar value={skillLevels[opt] ?? 40} />
+                </div>
+              ))}
           </div>
         )}
 
@@ -371,7 +388,12 @@ export function Evaluacion() {
           </Button>
           <Button
             onClick={handleNext}
-            disabled={submitting || detectingSkills || (step.type === "textarea" && !experienceText.trim())}
+            disabled={
+              submitting ||
+              detectingSkills ||
+              detectSkillsError ||
+              (step.type === "textarea" && !experienceText.trim())
+            }
             icon={stepIndex === steps.length - 1 ? undefined : ArrowRight}
             iconPosition="right"
           >

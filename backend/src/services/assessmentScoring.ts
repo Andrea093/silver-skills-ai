@@ -3,7 +3,8 @@
 // reproducible without external dependencies. When ANTHROPIC_API_KEY is configured, the free-text
 // "experiencia previa" answer is additionally sent to Claude to enrich the textual summary.
 
-import { detectProfession } from "../data/professionProfiles";
+import { detectProfession, detectSpecialty } from "../data/professionProfiles";
+import { computeYearsOfExperience, ParsedExperienceEntry } from "./cvParser";
 
 const GENERIC_SKILL_POOL = ["Liderazgo", "Comunicación", "Gestión", "Excel", "Análisis de Datos", "Inglés"];
 
@@ -63,7 +64,7 @@ export const WIZARD_STEPS = [
   {
     id: "skills",
     title: "Habilidades Detectadas",
-    description: "Ajusta el nivel de cada una según tu experiencia real (0-100)",
+    description: "Detectados a partir de tu experiencia y tu CV — no se editan manualmente",
     type: "skill-sliders",
     // Default/fallback options when the person skips the CV step and detect-skills hasn't run yet
     // — the frontend replaces these with the profession-specific list from /assessment/detect-skills.
@@ -143,24 +144,56 @@ export interface DetectedSkill {
   detected: boolean;
 }
 
+function countMentions(lowerText: string, name: string): number {
+  const escaped = name.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const matches = lowerText.match(new RegExp(escaped, "g"));
+  return matches ? matches.length : 0;
+}
+
 /**
- * Pre-fills the skill-sliders step from real evidence (the profession's ATS keyword bank matched
- * against the free-text experience answer, plus whatever the CV upload step already extracted)
- * instead of defaulting every slider to a flat, arbitrary-feeling 50.
+ * Pre-fills the skill-sliders step from real evidence — the profession's (and detected specialty's)
+ * keyword bank matched against the free-text experience answer, the CV's extracted skills, career
+ * length (from the CV's own parsed date ranges), and how many times each skill is actually mentioned
+ * — instead of a single flat "keyword present or not" boolean. The person no longer adjusts these
+ * manually (the frontend renders them read-only), so the numbers need to reflect real evidence, not
+ * a static guess.
+ *
+ * Boosts only ever apply on top of a detected base tier (75 text / 70 CV) — a skill with zero
+ * evidence stays at the 35 floor regardless of how many years of experience the person has, since
+ * career length isn't itself proof of THAT specific skill.
  */
-export function detectSkillLevels(experienceText: string, cvExtractedSkills: string[] = []): DetectedSkill[] {
+export function detectSkillLevels(
+  experienceText: string,
+  cvExtractedSkills: string[] = [],
+  cvExperience: ParsedExperienceEntry[] = []
+): DetectedSkill[] {
   const profile = detectProfession(experienceText);
+  const specialty = detectSpecialty(profile, experienceText);
   const lower = experienceText.toLowerCase();
 
-  const candidates = Array.from(new Set([...profile.atsKeywords, ...GENERIC_SKILL_POOL]));
+  const candidates = Array.from(
+    new Set([...profile.atsKeywords, ...(specialty?.disciplinarySkills || []), ...GENERIC_SKILL_POOL])
+  );
 
-  const fromText: DetectedSkill[] = candidates.map((name) => ({
+  const yearsOfExperience = computeYearsOfExperience(cvExperience);
+  const experienceBoost = Math.min(15, yearsOfExperience);
+
+  function boostedLevel(baseLevel: number, mentions: number): number {
+    const mentionBoost = Math.min(10, Math.max(0, mentions - 1) * 3);
+    return Math.min(95, baseLevel + experienceBoost + mentionBoost);
+  }
+
+  const fromText: DetectedSkill[] = candidates.map((name) => {
+    const mentions = countMentions(lower, name);
+    const detected = mentions > 0;
+    return { name, level: detected ? boostedLevel(75, mentions) : 35, detected };
+  });
+
+  const fromCv: DetectedSkill[] = cvExtractedSkills.map((name) => ({
     name,
-    level: lower.includes(name.toLowerCase()) ? 75 : 35,
-    detected: lower.includes(name.toLowerCase()),
+    level: boostedLevel(70, countMentions(lower, name)),
+    detected: true,
   }));
-
-  const fromCv: DetectedSkill[] = cvExtractedSkills.map((name) => ({ name, level: 70, detected: true }));
 
   const merged = new Map<string, DetectedSkill>();
   for (const skill of [...fromCv, ...fromText]) {

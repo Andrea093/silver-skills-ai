@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { RefreshCw, CheckCircle2, ExternalLink } from "lucide-react";
+import { RefreshCw, CheckCircle2, ExternalLink, BookMarked } from "lucide-react";
 import { api } from "../lib/api";
 import { Card, Badge, Button } from "../components/ui";
 
@@ -26,6 +26,83 @@ interface SkillsUpdateData {
   owned?: string[];
   gaps?: SkillGap[];
   totalGapsCount?: number;
+  specialtyId?: string | null;
+  specialtyLabel?: string | null;
+  disciplinaryOwned?: string[] | null;
+  disciplinaryGaps?: SkillGap[] | null;
+  disciplinaryTotalGapsCount?: number | null;
+}
+
+function OwnedSkillsCard({ title, owned, emptyText }: { title: string; owned: string[] | undefined | null; emptyText: string }) {
+  return (
+    <Card>
+      <h2 className="mb-4 font-semibold">{title}</h2>
+      {!owned || owned.length === 0 ? (
+        <p className="text-sm text-gray-500">{emptyText}</p>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {owned.map((name) => (
+            <Badge key={name} tone="success" icon={CheckCircle2}>
+              {name}
+            </Badge>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function GapsCard({
+  title,
+  description,
+  gaps,
+  totalGapsCount,
+  emptyText,
+}: {
+  title: string;
+  description: string;
+  gaps: SkillGap[] | undefined | null;
+  totalGapsCount: number | undefined | null;
+  emptyText: string;
+}) {
+  return (
+    <Card>
+      <h2 className="mb-1 font-semibold">{title}</h2>
+      <p className="mb-4 text-sm text-gray-500">{description}</p>
+      {!gaps || gaps.length === 0 ? (
+        <p className="text-sm text-gray-500">{emptyText}</p>
+      ) : (
+        <div className="space-y-4">
+          {gaps.map(({ skill, resource }) => (
+            <div key={skill} className="rounded-xl border border-gray-200 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <Badge tone="accent">Por actualizar</Badge>
+                  <div className="mt-1 font-medium">{skill}</div>
+                  {resource && <div className="mt-1 text-sm text-gray-500">{resource.provider}</div>}
+                </div>
+                {resource && (
+                  <div className="text-right">
+                    <div className={`font-semibold ${resource.isFree ? "text-emerald-600" : "text-gray-800"}`}>
+                      {resource.isFree ? "Gratis" : resource.priceLabel}
+                    </div>
+                    <a href={resource.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block">
+                      <Button size="md" icon={ExternalLink} iconPosition="right">
+                        {resource.isSearchLink ? "Buscar" : "Comenzar ahora"}
+                      </Button>
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+          {totalGapsCount && gaps && totalGapsCount > gaps.length && (
+            <p className="text-sm text-gray-500">+{totalGapsCount - gaps.length} habilidades más para actualizar.</p>
+          )}
+        </div>
+      )}
+    </Card>
+  );
 }
 
 export function Actualizacion() {
@@ -42,8 +119,8 @@ export function Actualizacion() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Actualización de Habilidades</h1>
         <p className="text-gray-500">
-          Para quienes ya tienen empleo: descubre qué habilidades del siglo XXI conviene sumar para
-          seguir siendo competitivo en tu profesión.
+          Para quienes ya tienen empleo: descubre qué debes actualizar en cómo haces tu trabajo y en
+          lo que sabes de tu especialidad, para seguir siendo competitivo.
         </p>
       </div>
 
@@ -64,8 +141,9 @@ export function Actualizacion() {
               <RefreshCw size={18} strokeWidth={2} className="text-brand-700" />
               <span className="text-sm font-medium text-gray-500">Perfil detectado</span>
             </div>
-            <div className="mt-2">
+            <div className="mt-2 flex flex-wrap gap-2">
               <Badge tone="brand">{data.professionLabel}</Badge>
+              {data.specialtyLabel && <Badge tone="accent">{data.specialtyLabel}</Badge>}
             </div>
             {data.professionId === "general" && (
               <p className="mt-3 text-sm text-gray-500">
@@ -75,67 +153,65 @@ export function Actualizacion() {
             )}
           </Card>
 
-          <Card>
-            <h2 className="mb-4 font-semibold">Habilidades que ya dominas</h2>
-            {!data.owned || data.owned.length === 0 ? (
-              <p className="text-sm text-gray-500">
-                Aún no tienes ninguna de las habilidades clave de tu profesión registradas.
-              </p>
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {data.owned.map((name) => (
-                  <Badge key={name} tone="success" icon={CheckCircle2}>
-                    {name}
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </Card>
-
-          <Card>
-            <h2 className="mb-1 font-semibold">Habilidades para actualizar</h2>
-            <p className="mb-4 text-sm text-gray-500">
-              Recomendadas según tu profesión y las tendencias de habilidades del siglo XXI.
+          <div>
+            <h2 className="mb-1 flex items-center gap-1.5 text-lg font-semibold">
+              <RefreshCw size={17} strokeWidth={2.25} className="text-brand-700" />
+              Dimensión 1: Cómo haces tu trabajo
+            </h2>
+            <p className="mb-3 text-sm text-gray-500">
+              Habilidades generales de tu profesión — comunes a cualquier persona en tu rol, más allá
+              de tu especialidad específica.
             </p>
-            {!data.gaps || data.gaps.length === 0 ? (
-              <p className="text-sm text-gray-500">
-                ¡Ya cubres todas las habilidades clave que identificamos para tu profesión!
-              </p>
-            ) : (
+            <div className="space-y-4">
+              <OwnedSkillsCard
+                title="Ya dominas"
+                owned={data.owned}
+                emptyText="Aún no tienes ninguna de las habilidades clave de tu profesión registradas."
+              />
+              <GapsCard
+                title="Para actualizar"
+                description="Recomendadas según tu profesión y las tendencias de habilidades del siglo XXI."
+                gaps={data.gaps}
+                totalGapsCount={data.totalGapsCount}
+                emptyText="¡Ya cubres todas las habilidades clave que identificamos para tu profesión!"
+              />
+            </div>
+          </div>
+
+          <div>
+            <h2 className="mb-1 flex items-center gap-1.5 text-lg font-semibold">
+              <BookMarked size={17} strokeWidth={2.25} className="text-brand-700" />
+              Dimensión 2: Lo que sabes de tu especialidad
+            </h2>
+            <p className="mb-3 text-sm text-gray-500">
+              Conocimiento disciplinar específico — por ejemplo, si tu especialidad es Física, esto
+              evalúa Física en sí, no cómo enseñas o gestionas tu rol en general.
+            </p>
+            {data.specialtyLabel ? (
               <div className="space-y-4">
-                {data.gaps.map(({ skill, resource }) => (
-                  <div key={skill} className="rounded-xl border border-gray-200 p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div>
-                        <Badge tone="accent">Por actualizar</Badge>
-                        <div className="mt-1 font-medium">{skill}</div>
-                        {resource && (
-                          <div className="mt-1 text-sm text-gray-500">{resource.provider}</div>
-                        )}
-                      </div>
-                      {resource && (
-                        <div className="text-right">
-                          <div className={`font-semibold ${resource.isFree ? "text-emerald-600" : "text-gray-800"}`}>
-                            {resource.isFree ? "Gratis" : resource.priceLabel}
-                          </div>
-                          <a href={resource.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block">
-                            <Button size="md" icon={ExternalLink} iconPosition="right">
-                              {resource.isSearchLink ? "Buscar" : "Comenzar ahora"}
-                            </Button>
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {data.totalGapsCount && data.gaps && data.totalGapsCount > data.gaps.length && (
-                  <p className="text-sm text-gray-500">
-                    +{data.totalGapsCount - data.gaps.length} habilidades más para actualizar.
-                  </p>
-                )}
+                <OwnedSkillsCard
+                  title="Ya dominas"
+                  owned={data.disciplinaryOwned}
+                  emptyText="Aún no tienes ninguna de las habilidades disciplinares detectadas registradas."
+                />
+                <GapsCard
+                  title="Para actualizar"
+                  description={`Recomendadas según tu especialidad en ${data.specialtyLabel}.`}
+                  gaps={data.disciplinaryGaps}
+                  totalGapsCount={data.disciplinaryTotalGapsCount}
+                  emptyText="¡Ya cubres todo el conocimiento disciplinar que identificamos para tu especialidad!"
+                />
               </div>
+            ) : (
+              <Card className="border border-accent-200 bg-accent-50">
+                <p className="text-sm text-accent-700">
+                  No pudimos detectar una especialidad específica dentro de tu profesión. Sube un CV
+                  más detallado en <Link to="/transicion" className="font-semibold underline">Transición</Link>{" "}
+                  (mencionando tu área o materia específica) para ver esta dimensión.
+                </p>
+              </Card>
             )}
-          </Card>
+          </div>
         </>
       )}
     </div>

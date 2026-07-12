@@ -139,6 +139,37 @@ function findHeaderStart(lines: string[], from: number, nextDateIdx: number): nu
   return candidates[Math.max(0, candidates.length - 2)];
 }
 
+const YEAR_RE = /(?:19|20)\d{2}/g;
+const CURRENT_MARKERS_RE = /actualidad|presente|hoy|en finalizaci[oó]n/i;
+
+/**
+ * Total career span in years, derived from the raw date-range strings already captured per
+ * experience entry — not per-entry duration summed (that double-counts concurrent roles), but the
+ * earliest start year to the latest end year (or the current year, for an open-ended "actualidad"
+ * range) across all entries. Returns 0 when no entry has a parseable year, degrading gracefully
+ * like the rest of this parser rather than guessing.
+ */
+export function computeYearsOfExperience(experience: ParsedExperienceEntry[]): number {
+  const currentYear = new Date().getFullYear();
+  let minYear: number | null = null;
+  let maxYear: number | null = null;
+
+  for (const entry of experience) {
+    const years = (entry.dates.match(YEAR_RE) || []).map(Number);
+    const isOpenEnded = CURRENT_MARKERS_RE.test(entry.dates);
+    if (years.length === 0 && !isOpenEnded) continue;
+
+    const startYear = years.length > 0 ? Math.min(...years) : null;
+    const endYear = isOpenEnded ? currentYear : years.length > 0 ? Math.max(...years) : null;
+
+    if (startYear !== null) minYear = minYear === null ? startYear : Math.min(minYear, startYear);
+    if (endYear !== null) maxYear = maxYear === null ? endYear : Math.max(maxYear, endYear);
+  }
+
+  if (minYear === null || maxYear === null) return 0;
+  return Math.max(0, Math.min(60, maxYear - minYear));
+}
+
 export function parseCvSections(rawText: string): ParsedCv {
   const lines = rawText.split(/\r?\n/);
   const { headerLines, sections } = splitSections(lines);
