@@ -356,9 +356,16 @@ async function searchSpeColombia(query: string, country: string, opts: JobSearch
   try {
     // DESCRIPCION_VACANTE does an exact-phrase substring match server-side, not a word-overlap
     // search — passing a whole CV-derived title ("Docente de Física y Matemáticas") matches almost
-    // nothing, since real postings rarely contain that literal phrase. The core keyword alone
-    // ("Docente") matches broadly, the same fix already applied to Remotive/Arbeitnow above.
-    const keyword = significantWords(query)[0] || query;
+    // nothing, since real postings rarely contain that literal phrase. The core role keyword alone
+    // ("Docente") matches broadly (the same fix already applied to Remotive/Arbeitnow above), but on
+    // its own it loses the specialty — a physics teacher would otherwise see the same generic
+    // teaching postings as a psychology teacher. So: fetch broad on the role keyword (this endpoint
+    // returns up to 50 per page), then re-rank client-side so postings mentioning the remaining
+    // words (the specialty — "física", "matemáticas") surface first, falling back to the broader
+    // set to fill out the list when nothing specialty-specific exists.
+    const words = significantWords(query);
+    const keyword = words[0] || query;
+    const specialtyQuery = words.slice(1).join(" ");
     const params = new URLSearchParams({ page: "1", DESCRIPCION_VACANTE: keyword });
     const municipio = await resolveSpeMunicipio(opts.location);
     if (municipio) params.set("MUNICIPIO", municipio);
@@ -366,7 +373,13 @@ async function searchSpeColombia(query: string, country: string, opts: JobSearch
     if (opts.modality === "onsite") params.set("TELETRABAJO", "0");
 
     const data = await speFetchJson(`${SPE_BASE}/vacantes/resultados?${params.toString()}`);
-    const jobs = Array.isArray(data.resultados) ? data.resultados : [];
+    let jobs = Array.isArray(data.resultados) ? data.resultados : [];
+    if (specialtyQuery) {
+      jobs = [...jobs].sort((a: any, b: any) => {
+        const score = (j: any) => (queryMatches(`${j.CARGO || ""} ${j.DESCRIPCION_VACANTE || ""}`, specialtyQuery) ? 1 : 0);
+        return score(b) - score(a);
+      });
+    }
     return jobs.slice(0, 10).map((j: any) => {
       const prestador = Array.isArray(j.DETALLES_PRESTADOR) ? j.DETALLES_PRESTADOR[0] : undefined;
       return {
