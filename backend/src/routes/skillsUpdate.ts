@@ -55,7 +55,10 @@ skillsUpdateRouter.get("/", requireAuth, async (req, res) => {
     profile = rawText ? detectProfession(rawText) : GENERAL_PROFILE;
   }
 
-  const ownedLower = new Set(skills.map((s) => s.name.toLowerCase()));
+  // A skill saved at the 35 "undetected" floor isn't real evidence of ownership — only count skills
+  // the person actually showed some confidence in (same >=50 threshold already used elsewhere in
+  // the app, e.g. cvGenerator.ts's mergePlatformSkills) as "ya dominas".
+  const ownedLower = new Set(skills.filter((s) => s.level >= 50).map((s) => s.name.toLowerCase()));
 
   // Dimension 1: general/role skills — how you do the job, common to anyone in the profession.
   const generalTargetSkills = dedupeCaseInsensitive([...profile.atsKeywords, ...profile.century21Skills]);

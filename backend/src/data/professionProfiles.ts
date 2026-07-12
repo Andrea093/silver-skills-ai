@@ -2,6 +2,8 @@
 // instead of applying one generic template to everyone. Categories are intentionally broad
 // (LATAM-relevant occupations), not an exhaustive classification system.
 
+import { normalizeForMatch } from "../lib/textNormalize";
+
 export interface Specialty {
   id: string;
   label: string;
@@ -465,12 +467,12 @@ export const GENERAL_PROFILE: ProfessionProfile = {
 export const CENTURY21_SKILLS = CORE_CENTURY21_SKILLS;
 
 export function detectProfession(rawText: string, headline?: string): ProfessionProfile {
-  const haystack = `${headline || ""} ${rawText}`.toLowerCase();
+  const haystack = normalizeForMatch(`${headline || ""} ${rawText}`);
 
   let best: { profile: ProfessionProfile; score: number } | null = null;
   for (const profile of PROFESSION_PROFILES) {
     const score = profile.matchKeywords.reduce(
-      (sum, kw) => sum + (haystack.includes(kw.toLowerCase()) ? 1 : 0),
+      (sum, kw) => sum + (haystack.includes(normalizeForMatch(kw)) ? 1 : 0),
       0
     );
     if (score > 0 && (!best || score > best.score)) {
@@ -489,12 +491,12 @@ export function detectProfession(rawText: string, headline?: string): Profession
  */
 export function detectSpecialty(profile: ProfessionProfile, rawText: string, headline?: string): Specialty | null {
   if (!profile.specialties || profile.specialties.length === 0) return null;
-  const haystack = `${headline || ""} ${rawText}`.toLowerCase();
+  const haystack = normalizeForMatch(`${headline || ""} ${rawText}`);
 
   let best: { specialty: Specialty; score: number } | null = null;
   for (const specialty of profile.specialties) {
     const score = specialty.matchKeywords.reduce(
-      (sum, kw) => sum + (haystack.includes(kw.toLowerCase()) ? 1 : 0),
+      (sum, kw) => sum + (haystack.includes(normalizeForMatch(kw)) ? 1 : 0),
       0
     );
     if (score > 0 && (!best || score > best.score)) {

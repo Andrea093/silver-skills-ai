@@ -5,6 +5,7 @@
 
 import { detectProfession, detectSpecialty } from "../data/professionProfiles";
 import { computeYearsOfExperience, ParsedExperienceEntry } from "./cvParser";
+import { normalizeForMatch } from "../lib/textNormalize";
 
 const GENERIC_SKILL_POOL = ["Liderazgo", "Comunicación", "Gestión", "Excel", "Análisis de Datos", "Inglés"];
 
@@ -144,9 +145,9 @@ export interface DetectedSkill {
   detected: boolean;
 }
 
-function countMentions(lowerText: string, name: string): number {
-  const escaped = name.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const matches = lowerText.match(new RegExp(escaped, "g"));
+function countMentions(normalizedText: string, name: string): number {
+  const escaped = normalizeForMatch(name).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const matches = normalizedText.match(new RegExp(escaped, "g"));
   return matches ? matches.length : 0;
 }
 
@@ -169,7 +170,7 @@ export function detectSkillLevels(
 ): DetectedSkill[] {
   const profile = detectProfession(experienceText);
   const specialty = detectSpecialty(profile, experienceText);
-  const lower = experienceText.toLowerCase();
+  const lower = normalizeForMatch(experienceText);
 
   const candidates = Array.from(
     new Set([...profile.atsKeywords, ...(specialty?.disciplinarySkills || []), ...GENERIC_SKILL_POOL])
