@@ -23,7 +23,7 @@ export interface CvAnalysisResult {
 }
 
 export interface NormalizedJob {
-  source: "adzuna" | "remotive" | "arbeitnow" | "jooble";
+  source: "adzuna" | "remotive" | "arbeitnow" | "jooble" | "spe";
   externalId: string;
   title: string;
   company: string;

@@ -36,6 +36,14 @@ const MODALITIES: { value: Modality; label: string }[] = [
   { value: "onsite", label: "Presencial" },
 ];
 
+const SOURCE_LABELS: Record<NormalizedJob["source"], string> = {
+  spe: "Servicio Público de Empleo",
+  adzuna: "Adzuna",
+  jooble: "Jooble",
+  remotive: "Remotive",
+  arbeitnow: "Arbeitnow",
+};
+
 function riskLabel(risk: number) {
   if (risk < 40) return { text: "Bajo riesgo", tone: "success" as const };
   if (risk < 70) return { text: "Riesgo moderado", tone: "neutral" as const };
@@ -382,7 +390,7 @@ export function Transicion() {
                               {t}
                             </Badge>
                           ))}
-                          <Badge>{job.source}</Badge>
+                          <Badge>{SOURCE_LABELS[job.source] || job.source}</Badge>
                         </div>
                       </div>
                       <div className="flex flex-col gap-2">

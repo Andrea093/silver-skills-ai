@@ -1,3 +1,5 @@
+import https from "https";
+import tls from "tls";
 import { env, isAdzunaEnabled, isJoobleEnabled } from "../lib/env";
 
 function stripHtml(html: string | undefined): string | undefined {
@@ -51,7 +53,7 @@ function queryMatches(haystack: string, query: string): boolean {
 }
 
 export interface NormalizedJob {
-  source: "adzuna" | "remotive" | "arbeitnow" | "jooble";
+  source: "adzuna" | "remotive" | "arbeitnow" | "jooble" | "spe";
   externalId: string;
   title: string;
   company: string;
@@ -219,14 +221,181 @@ async function searchJooble(query: string, opts: JobSearchOptions): Promise<Norm
   }
 }
 
+const SPE_BASE = "https://www.buscadordeempleo.gov.co/backbue/v1";
+
+// The government site's server sends an incomplete TLS chain (missing this intermediate) — browsers
+// tolerate that via cached/AIA-fetched intermediates, but Node's fetch does not, so plain fetch()
+// fails here with UNABLE_TO_VERIFY_LEAF_SIGNATURE. This is the real, publicly published DigiCert/
+// GeoTrust intermediate (fetched from its own AIA "CA Issuers" URL) chaining up to a root Node
+// already trusts — bundling it is the correct fix, not disabling certificate verification.
+const SPE_INTERMEDIATE_CA = `-----BEGIN CERTIFICATE-----
+MIIEjTCCA3WgAwIBAgIQDQd4KhM/xvmlcpbhMf/ReTANBgkqhkiG9w0BAQsFADBh
+MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3
+d3cuZGlnaWNlcnQuY29tMSAwHgYDVQQDExdEaWdpQ2VydCBHbG9iYWwgUm9vdCBH
+MjAeFw0xNzExMDIxMjIzMzdaFw0yNzExMDIxMjIzMzdaMGAxCzAJBgNVBAYTAlVT
+MRUwEwYDVQQKEwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5j
+b20xHzAdBgNVBAMTFkdlb1RydXN0IFRMUyBSU0EgQ0EgRzEwggEiMA0GCSqGSIb3
+DQEBAQUAA4IBDwAwggEKAoIBAQC+F+jsvikKy/65LWEx/TMkCDIuWegh1Ngwvm4Q
+yISgP7oU5d79eoySG3vOhC3w/3jEMuipoH1fBtp7m0tTpsYbAhch4XA7rfuD6whU
+gajeErLVxoiWMPkC/DnUvbgi74BJmdBiuGHQSd7LwsuXpTEGG9fYXcbTVN5SATYq
+DfbexbYxTMwVJWoVb6lrBEgM3gBBqiiAiy800xu1Nq07JdCIQkBsNpFtZbIZhsDS
+fzlGWP4wEmBQ3O67c+ZXkFr2DcrXBEtHam80Gp2SNhou2U5U7UesDL/xgLK6/0d7
+6TnEVMSUVJkZ8VeZr+IUIlvoLrtjLbqugb0T3OYXW+CQU0kBAgMBAAGjggFAMIIB
+PDAdBgNVHQ4EFgQUlE/UXYvkpOKmgP792PkA76O+AlcwHwYDVR0jBBgwFoAUTiJU
+IBiV5uNu5g/6+rkS7QYXjzkwDgYDVR0PAQH/BAQDAgGGMB0GA1UdJQQWMBQGCCsG
+AQUFBwMBBggrBgEFBQcDAjASBgNVHRMBAf8ECDAGAQH/AgEAMDQGCCsGAQUFBwEB
+BCgwJjAkBggrBgEFBQcwAYYYaHR0cDovL29jc3AuZGlnaWNlcnQuY29tMEIGA1Ud
+HwQ7MDkwN6A1oDOGMWh0dHA6Ly9jcmwzLmRpZ2ljZXJ0LmNvbS9EaWdpQ2VydEds
+b2JhbFJvb3RHMi5jcmwwPQYDVR0gBDYwNDAyBgRVHSAAMCowKAYIKwYBBQUHAgEW
+HGh0dHBzOi8vd3d3LmRpZ2ljZXJ0LmNvbS9DUFMwDQYJKoZIhvcNAQELBQADggEB
+AIIcBDqC6cWpyGUSXAjjAcYwsK4iiGF7KweG97i1RJz1kwZhRoo6orU1JtBYnjzB
+c4+/sXmnHJk3mlPyL1xuIAt9sMeC7+vreRIF5wFBC0MCN5sbHwhNN1JzKbifNeP5
+ozpZdQFmkCo+neBiKR6HqIA+LMTMCMMuv2khGGuPHmtDze4GmEGZtYLyF8EQpa5Y
+jPuV6k2Cr/N3XxFpT3hRpt/3usU/Zb9wfKPtWpoznZ4/44c1p9rzFcZYrWkj3A+7
+TNBJE0GmP2fhXhP1D/XVfIW/h0yCJGEiV9Glm/uGOa3DXHlmbAcxSyCRraG+ZBkA
+7h4SeM6Y8l/7MBRpPCz6l8Y=
+-----END CERTIFICATE-----`;
+
+const speAgent = new https.Agent({ ca: [SPE_INTERMEDIATE_CA, ...tls.rootCertificates] });
+
+function speFetchJson(url: string): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, { agent: speAgent, headers: { Accept: "application/json" } }, (res) => {
+      if (!res.statusCode || res.statusCode >= 400) {
+        res.resume();
+        reject(new Error(`SPE HTTP ${res.statusCode}`));
+        return;
+      }
+      let body = "";
+      res.setEncoding("utf8");
+      res.on("data", (chunk) => (body += chunk));
+      res.on("end", () => {
+        try {
+          resolve(JSON.parse(body));
+        } catch (err) {
+          reject(err);
+        }
+      });
+    });
+    req.on("error", reject);
+    req.setTimeout(8000, () => req.destroy(new Error("SPE request timed out")));
+  });
+}
+
+// Telltale bytes of UTF-8 text that got decoded as Latin-1 then re-encoded (each accented Spanish
+// character turns into an "Ã"/"Â" pair). Only some of this feed's fields are affected — applying
+// the fix unconditionally would instead corrupt fields that are already correctly encoded.
+const MOJIBAKE_PATTERN = /[ÃÂ]/;
+
+/**
+ * Some of the feed's own text fields (mainly the long description) are mangled by a double-
+ * encoding bug on their end — this best-effort repairs accented Spanish text where that's detected,
+ * and always drops stray control/emoji-remnant bytes that don't render as legible Spanish.
+ */
+function cleanSpeText(text: string | undefined): string | undefined {
+  if (!text) return text;
+  let fixed = text;
+  if (MOJIBAKE_PATTERN.test(text)) {
+    try {
+      fixed = Buffer.from(text, "latin1").toString("utf8");
+    } catch {
+      // keep original if the round-trip itself throws
+    }
+  }
+  // Whatever's left of unrecoverable multi-byte sequences (mostly emoji) gets stripped here too,
+  // since it falls outside this printable/Latin-1 range regardless of which branch ran above.
+  return fixed
+    .replace(/[^\x20-\x7E¡-ÿ\n\r]/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim()
+    .slice(0, 4000);
+}
+
+function normalizeForMatch(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9 ]/g, "")
+    .trim();
+}
+
+let speMunicipioCache: { names: string[]; fetchedAt: number } | null = null;
+const SPE_MUNICIPIO_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+// The MUNICIPIO filter requires an exact canonical string (e.g. "BOGOTÁ, D.C.", not "Bogota"), and
+// that canonical list is only exposed as a facet on the results endpoint itself — fetched once and
+// cached, since city names essentially never change within a day.
+async function resolveSpeMunicipio(location: string | undefined): Promise<string | undefined> {
+  if (!location) return undefined;
+  try {
+    if (!speMunicipioCache || Date.now() - speMunicipioCache.fetchedAt > SPE_MUNICIPIO_CACHE_TTL_MS) {
+      const data = await speFetchJson(`${SPE_BASE}/vacantes/resultados?page=1`);
+      const names = Array.isArray(data.total_municipios)
+        ? data.total_municipios.map((m: any) => String(m.municipio))
+        : [];
+      speMunicipioCache = { names, fetchedAt: Date.now() };
+    }
+  } catch {
+    // fall through to whatever's cached (possibly nothing) rather than throwing
+  }
+  const target = normalizeForMatch(location);
+  if (!target) return undefined;
+  const match = (speMunicipioCache?.names || []).find((m) => normalizeForMatch(m).includes(target));
+  return match;
+}
+
+/**
+ * Real, live, unauthenticated vacancy data from Colombia's official public employment service
+ * ("Bolsa Única de Empleo" / Servicio Público de Empleo) — reverse-engineered from their own public
+ * frontend's network calls, since there's no published API or key: this is the exact endpoint their
+ * website itself calls from the browser. Colombia-only, so it's skipped for every other country.
+ */
+async function searchSpeColombia(query: string, country: string, opts: JobSearchOptions): Promise<NormalizedJob[]> {
+  if (country !== "co") return [];
+  try {
+    // DESCRIPCION_VACANTE does an exact-phrase substring match server-side, not a word-overlap
+    // search — passing a whole CV-derived title ("Docente de Física y Matemáticas") matches almost
+    // nothing, since real postings rarely contain that literal phrase. The core keyword alone
+    // ("Docente") matches broadly, the same fix already applied to Remotive/Arbeitnow above.
+    const keyword = significantWords(query)[0] || query;
+    const params = new URLSearchParams({ page: "1", DESCRIPCION_VACANTE: keyword });
+    const municipio = await resolveSpeMunicipio(opts.location);
+    if (municipio) params.set("MUNICIPIO", municipio);
+    if (opts.modality === "remote") params.set("TELETRABAJO", "1");
+    if (opts.modality === "onsite") params.set("TELETRABAJO", "0");
+
+    const data = await speFetchJson(`${SPE_BASE}/vacantes/resultados?${params.toString()}`);
+    const jobs = Array.isArray(data.resultados) ? data.resultados : [];
+    return jobs.slice(0, 10).map((j: any) => {
+      const prestador = Array.isArray(j.DETALLES_PRESTADOR) ? j.DETALLES_PRESTADOR[0] : undefined;
+      return {
+        source: "spe" as const,
+        externalId: String(j.CODIGO_VACANTE),
+        title: cleanSpeText(j.CARGO || j.TITULO_VACANTE) || "Vacante",
+        company: prestador?.NOMBRE_PRESTADOR || "Servicio Público de Empleo",
+        url: prestador?.URL_DETALLE_VACANTE || "https://www.buscadordeempleo.gov.co/",
+        location: j.MUNICIPIO || j.DEPARTAMENTO || "Colombia",
+        tags: j.SECTOR_ECONOMICO ? [j.SECTOR_ECONOMICO] : [],
+        salary: j.RANGO_SALARIAL || undefined,
+        postedAt: j.FECHA_PUBLICACION,
+        description: cleanSpeText(j.DESCRIPCION_VACANTE),
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
 export async function searchJobs(query: string, country = "mx", opts: JobSearchOptions = {}): Promise<NormalizedJob[]> {
-  const [adzuna, jooble, remotive, arbeitnow] = await Promise.all([
+  const [adzuna, jooble, remotive, arbeitnow, spe] = await Promise.all([
     searchAdzuna(query, country, opts),
     searchJooble(query, opts),
     searchRemotive(query, opts),
     searchArbeitnow(query, opts),
+    searchSpeColombia(query, country, opts),
   ]);
-  return [...adzuna, ...jooble, ...remotive, ...arbeitnow];
+  return [...spe, ...adzuna, ...jooble, ...remotive, ...arbeitnow];
 }
 
 const COUNTRY_NAMES: Record<string, string> = {
