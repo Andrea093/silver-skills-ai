@@ -61,6 +61,7 @@ cvRouter.post("/analyze", requireAuth, upload.single("cv"), async (req, res) => 
       extractedSkills: result.extractedSkills,
       atsScore: result.atsScore,
       suggestions: result.suggestions,
+      professionLabel: result.professionLabel,
     });
   } catch (err) {
     console.error(err);
@@ -115,7 +116,7 @@ cvRouter.post("/generate", requireAuth, async (req, res) => {
       select: { name: true, level: true },
     });
 
-    const buffer = await generateTailoredCv({
+    const { buffer, professionLabel } = await generateTailoredCv({
       rawText: analysis.rawText,
       mode,
       format,
@@ -132,6 +133,8 @@ cvRouter.post("/generate", requireAuth, async (req, res) => {
     };
     res.setHeader("Content-Disposition", `attachment; filename="CV_${safeName}${suffix}.${format}"`);
     res.setHeader("Content-Type", contentTypes[format]);
+    res.setHeader("X-Profession-Label", encodeURIComponent(professionLabel));
+    res.setHeader("Access-Control-Expose-Headers", "X-Profession-Label, Content-Disposition");
     res.send(buffer);
   } catch (err) {
     console.error(err);

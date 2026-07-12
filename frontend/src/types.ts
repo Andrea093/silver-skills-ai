@@ -13,8 +13,17 @@ export interface Skill {
   level: number;
 }
 
+export interface CvAnalysisResult {
+  id: string;
+  filename: string;
+  extractedSkills: string[];
+  atsScore: number;
+  suggestions: string[];
+  professionLabel: string;
+}
+
 export interface NormalizedJob {
-  source: "adzuna" | "remotive" | "arbeitnow";
+  source: "adzuna" | "remotive" | "arbeitnow" | "jooble";
   externalId: string;
   title: string;
   company: string;
@@ -68,3 +77,5 @@ export interface ChatMessage {
   cards: MentorCard[];
   createdAt: string;
 }
+
+export type Modality = "remote" | "hybrid" | "onsite" | "any";

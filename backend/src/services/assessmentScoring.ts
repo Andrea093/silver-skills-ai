@@ -3,6 +3,10 @@
 // reproducible without external dependencies. When ANTHROPIC_API_KEY is configured, the free-text
 // "experiencia previa" answer is additionally sent to Claude to enrich the textual summary.
 
+import { detectProfession } from "../data/professionProfiles";
+
+const GENERIC_SKILL_POOL = ["Liderazgo", "Comunicación", "Gestión", "Excel", "Análisis de Datos", "Inglés"];
+
 export interface AssessmentAnswers {
   experienceText: string;
   currentSkills: { name: string; level: number }[];
@@ -51,11 +55,19 @@ export const WIZARD_STEPS = [
     placeholder: "Ejemplo: He trabajado 20 años en gestión de ventas y liderazgo de equipos en el sector retail...",
   },
   {
+    id: "cv-upload",
+    title: "Sube tu Currículum (opcional)",
+    description: "Si lo subes aquí, detectamos habilidades reales de tu CV para la siguiente pregunta — y ya queda listo para generar una versión optimizada más adelante",
+    type: "cv-upload",
+  },
+  {
     id: "skills",
-    title: "Autoevaluación de Habilidades",
-    description: "¿Qué tan fuerte te sientes en estas áreas? (0-100)",
+    title: "Habilidades Detectadas",
+    description: "Ajusta el nivel de cada una según tu experiencia real (0-100)",
     type: "skill-sliders",
-    options: ["Liderazgo", "Excel", "Comunicación", "IA Generativa", "Gestión", "Marketing Digital"],
+    // Default/fallback options when the person skips the CV step and detect-skills hasn't run yet
+    // — the frontend replaces these with the profession-specific list from /assessment/detect-skills.
+    options: GENERIC_SKILL_POOL,
   },
   {
     id: "interests",
@@ -123,4 +135,41 @@ export function heuristicSummary(answers: AssessmentAnswers, computed: ReturnTyp
     `Riesgo de automatización: ${computed.automationRisk}%. Potencial de adaptación: ${computed.adaptationPotential}%.`,
   ];
   return parts.filter(Boolean).join(" ");
+}
+
+export interface DetectedSkill {
+  name: string;
+  level: number;
+  detected: boolean;
+}
+
+/**
+ * Pre-fills the skill-sliders step from real evidence (the profession's ATS keyword bank matched
+ * against the free-text experience answer, plus whatever the CV upload step already extracted)
+ * instead of defaulting every slider to a flat, arbitrary-feeling 50.
+ */
+export function detectSkillLevels(experienceText: string, cvExtractedSkills: string[] = []): DetectedSkill[] {
+  const profile = detectProfession(experienceText);
+  const lower = experienceText.toLowerCase();
+
+  const candidates = Array.from(new Set([...profile.atsKeywords, ...GENERIC_SKILL_POOL]));
+
+  const fromText: DetectedSkill[] = candidates.map((name) => ({
+    name,
+    level: lower.includes(name.toLowerCase()) ? 75 : 35,
+    detected: lower.includes(name.toLowerCase()),
+  }));
+
+  const fromCv: DetectedSkill[] = cvExtractedSkills.map((name) => ({ name, level: 70, detected: true }));
+
+  const merged = new Map<string, DetectedSkill>();
+  for (const skill of [...fromCv, ...fromText]) {
+    const key = skill.name.toLowerCase();
+    const existing = merged.get(key);
+    if (!existing || skill.level > existing.level) merged.set(key, skill);
+  }
+
+  return Array.from(merged.values())
+    .sort((a, b) => Number(b.detected) - Number(a.detected) || b.level - a.level)
+    .slice(0, 8);
 }

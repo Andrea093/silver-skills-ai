@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { env, isMentorAgentEnabled } from "../lib/env";
+import { detectProfession } from "../data/professionProfiles";
 
 const KNOWN_SKILLS = [
   "Liderazgo",
@@ -23,11 +24,15 @@ export interface CvAnalysisResult {
   extractedSkills: string[];
   atsScore: number;
   suggestions: string[];
+  professionLabel: string;
 }
 
 function heuristicAnalyze(text: string): CvAnalysisResult {
   const lower = text.toLowerCase();
-  const extractedSkills = KNOWN_SKILLS.filter((s) => lower.includes(s.toLowerCase()));
+  const profile = detectProfession(text);
+  const professionMatches = profile.atsKeywords.filter((k) => lower.includes(k.toLowerCase()));
+  const genericMatches = KNOWN_SKILLS.filter((s) => lower.includes(s.toLowerCase()));
+  const extractedSkills = Array.from(new Set([...professionMatches, ...genericMatches]));
 
   const wordCount = text.split(/\s+/).filter(Boolean).length;
   const hasNumbers = /\d/.test(text);
@@ -41,16 +46,24 @@ function heuristicAnalyze(text: string): CvAnalysisResult {
   atsScore = Math.max(10, Math.min(95, atsScore));
 
   const suggestions: string[] = [];
-  if (!hasNumbers) suggestions.push("Agrega logros cuantificables (ej. 'aumenté ventas en 20%').");
-  if (extractedSkills.length < 3) suggestions.push("Incluye más palabras clave de habilidades relevantes para tu industria.");
+  if (!hasNumbers) suggestions.push("Agrega logros cuantificables (ej. 'aumenté ventas en 20%' o 'lideré un equipo de 12 personas').");
+  if (professionMatches.length < 3) {
+    suggestions.push(
+      `Detectamos tu perfil como ${profile.label} — incluye más palabras clave de esta área, como: ${profile.atsKeywords
+        .slice(0, 4)
+        .join(", ")}.`
+    );
+  }
   if (!hasEmail) suggestions.push("Asegúrate de incluir tu información de contacto (email, teléfono).");
   if (wordCount < 150) suggestions.push("Tu CV parece muy corto — detalla más tu experiencia y logros.");
   if (suggestions.length === 0) suggestions.push("Tu CV luce sólido. Considera adaptarlo a cada vacante con las palabras clave del anuncio.");
 
-  return { extractedSkills, atsScore, suggestions };
+  return { extractedSkills, atsScore, suggestions, professionLabel: profile.label };
 }
 
 export async function analyzeCv(text: string): Promise<CvAnalysisResult> {
+  const profile = detectProfession(text);
+
   if (!isMentorAgentEnabled()) {
     return heuristicAnalyze(text);
   }
@@ -63,7 +76,7 @@ export async function analyzeCv(text: string): Promise<CvAnalysisResult> {
       messages: [
         {
           role: "user",
-          content: `Analiza este CV para un adulto 50+ que busca reinsertarse laboralmente en LATAM. Responde SOLO con JSON válido con este shape exacto: {"extractedSkills": string[], "atsScore": number (0-100), "suggestions": string[] (3-5 sugerencias concretas para optimizar el CV para sistemas ATS)}.\n\nCV:\n${text.slice(0, 8000)}`,
+          content: `Analiza este CV para un adulto 50+ que busca reinsertarse laboralmente en LATAM. Su perfil detectado es "${profile.label}". Responde SOLO con JSON válido con este shape exacto: {"extractedSkills": string[], "atsScore": number (0-100), "suggestions": string[] (3-5 sugerencias concretas para optimizar el CV para sistemas ATS, específicas para su área)}.\n\nCV:\n${text.slice(0, 8000)}`,
         },
       ],
     });
@@ -76,6 +89,7 @@ export async function analyzeCv(text: string): Promise<CvAnalysisResult> {
       extractedSkills: Array.isArray(parsed.extractedSkills) ? parsed.extractedSkills : [],
       atsScore: typeof parsed.atsScore === "number" ? parsed.atsScore : 50,
       suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : [],
+      professionLabel: profile.label,
     };
   } catch {
     return heuristicAnalyze(text);

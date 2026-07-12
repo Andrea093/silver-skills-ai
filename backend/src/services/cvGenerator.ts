@@ -1,7 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { Document, Packer, Paragraph, TextRun, HeadingLevel } from "docx";
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, BorderStyle } from "docx";
 import PDFDocument from "pdfkit";
 import { env, isMentorAgentEnabled } from "../lib/env";
+import { parseCvSections } from "./cvParser";
+import { detectProfession, ProfessionProfile } from "../data/professionProfiles";
 
 export interface TargetJob {
   source: string;
@@ -38,6 +40,8 @@ interface StructuredCv {
   headline: string;
   summary: string;
   skills: string[];
+  century21Skills: string[];
+  experienceSectionLabel: string;
   experience: ExperienceEntry[];
   education: string[];
   certifications: string[];
@@ -61,45 +65,60 @@ const KNOWN_SKILLS = [
   "Finanzas",
 ];
 
-// Skills the platform already knows about (from the Evaluación wizard, refreshed as the person
-// completes recommended courses) often aren't mentioned in an older uploaded CV — merging them in
-// is how newly-developed training shows up on the generated CV instead of only what was already
-// written down.
-function mergePlatformSkills(structured: StructuredCv, platformSkills: PlatformSkill[]): StructuredCv {
-  if (platformSkills.length === 0) return structured;
+function dedupeCaseInsensitive(items: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const item of items) {
+    const key = item.toLowerCase().trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    result.push(item);
+  }
+  return result;
+}
 
-  const existingLower = structured.skills.map((s) => s.toLowerCase());
+function mergePlatformSkills(skills: string[], summary: string, platformSkills: PlatformSkill[]): { skills: string[]; summary: string } {
+  if (platformSkills.length === 0) return { skills, summary };
+
+  const existingLower = skills.map((s) => s.toLowerCase());
   const newSkills = platformSkills
     .filter((s) => s.level >= 50) // only confident-enough skills, not ones barely started
     .filter((s) => !existingLower.includes(s.name.toLowerCase()))
     .map((s) => s.name);
 
-  if (newSkills.length === 0) return structured;
+  if (newSkills.length === 0) return { skills, summary };
 
   return {
-    ...structured,
-    skills: [...structured.skills, ...newSkills],
-    summary: `${structured.summary} Habilidades adicionales desarrolladas recientemente en la plataforma: ${newSkills.join(", ")}.`,
+    skills: dedupeCaseInsensitive([...skills, ...newSkills]),
+    summary: `${summary} Habilidades adicionales desarrolladas recientemente en la plataforma: ${newSkills.join(", ")}.`,
   };
 }
 
-// Without ANTHROPIC_API_KEY there is no real rewriting model, so the "vacancy" mode can't
-// genuinely rephrase content around a job description — but it can still honestly reorder/flag
-// the skills that actually match the target vacancy's real tags/description, instead of returning
-// an identical document to the ATS mode.
-function heuristicStructureCv(rawText: string, mode: "ats" | "vacancy", targetJob?: TargetJob): StructuredCv {
+// Without ANTHROPIC_API_KEY there is no real rewriting model, so this builds the CV from the
+// actual parsed structure of the uploaded document plus a profession-specific ATS keyword bank —
+// real differentiation by profile instead of one generic "dump the text as bullets" template.
+function heuristicStructureCv(
+  rawText: string,
+  mode: "ats" | "vacancy",
+  targetJob: TargetJob | undefined,
+  profile: ProfessionProfile
+): StructuredCv {
+  const parsed = parseCvSections(rawText);
   const lower = rawText.toLowerCase();
-  const allSkills = KNOWN_SKILLS.filter((s) => lower.includes(s.toLowerCase()));
-  const lines = rawText
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter(Boolean);
 
-  let skills = allSkills.length > 0 ? allSkills : ["Liderazgo", "Comunicación", "Adaptabilidad"];
-  let headline = "Perfil Profesional";
+  const atsMatches = profile.atsKeywords.filter((k) => lower.includes(k.toLowerCase()));
+  const genericMatches = KNOWN_SKILLS.filter((s) => lower.includes(s.toLowerCase()));
+  const skillsFromLine = parsed.skillsLine
+    ? parsed.skillsLine.split(/,\s*/).map((s) => s.trim()).filter(Boolean)
+    : [];
+
+  let skills = dedupeCaseInsensitive([...skillsFromLine, ...atsMatches, ...genericMatches]);
+  if (skills.length === 0) skills = profile.atsKeywords.slice(0, 6);
+
+  let headline = parsed.headline || profile.label;
   let summary =
-    lines.slice(0, 3).join(" ") ||
-    "Profesional con trayectoria diversa, buscando nuevas oportunidades de desarrollo.";
+    parsed.profileSummary ||
+    `Profesional del área de ${profile.label.toLowerCase()} con experiencia relevante y trayectoria demostrable.`;
 
   if (mode === "vacancy" && targetJob) {
     const jobText = `${targetJob.title} ${(targetJob.tags || []).join(" ")} ${targetJob.description || ""}`.toLowerCase();
@@ -112,20 +131,31 @@ function heuristicStructureCv(rawText: string, mode: "ats" | "vacancy", targetJo
     }, con especial énfasis en ${matching.length > 0 ? matching.join(", ") : "las habilidades requeridas por la vacante"}.`;
   }
 
+  const experience: ExperienceEntry[] =
+    parsed.experience.length > 0
+      ? parsed.experience.map((e) => ({ role: e.role, company: e.company, dates: e.dates, bullets: e.bullets }))
+      : [
+          {
+            role: profile.experienceSectionLabel,
+            company: "",
+            dates: "",
+            bullets: rawText
+              .split(/\r?\n/)
+              .map((l) => l.trim())
+              .filter(Boolean)
+              .slice(0, 12),
+          },
+        ];
+
   return {
     headline,
     summary,
     skills,
-    experience: [
-      {
-        role: "Experiencia profesional",
-        company: "",
-        dates: "",
-        bullets: lines.slice(0, 12),
-      },
-    ],
-    education: [],
-    certifications: [],
+    century21Skills: profile.century21Skills,
+    experienceSectionLabel: profile.experienceSectionLabel,
+    experience,
+    education: parsed.education,
+    certifications: parsed.courses,
   };
 }
 
@@ -133,7 +163,8 @@ async function structureCvWithClaude(
   rawText: string,
   mode: "ats" | "vacancy",
   targetJob: TargetJob | undefined,
-  platformSkills: PlatformSkill[]
+  platformSkills: PlatformSkill[],
+  profile: ProfessionProfile
 ): Promise<StructuredCv> {
   const client = new Anthropic({ apiKey: env.anthropicApiKey });
 
@@ -155,19 +186,21 @@ Prioriza y resalta la experiencia y habilidades del candidato que mejor calcen c
           .join(", ")}.`
       : "";
 
+  const professionNote = `\n\nDetectamos que este candidato pertenece al área de "${profile.label}". Usa palabras clave ATS relevantes a esta área, por ejemplo: ${profile.atsKeywords.join(", ")}.`;
+
   const message = await client.messages.create({
     model: "claude-sonnet-5",
     max_tokens: 2048,
     messages: [
       {
         role: "user",
-        content: `${instructions}${platformSkillsNote}
+        content: `${instructions}${platformSkillsNote}${professionNote}
 
 Responde SOLO con JSON válido con este shape exacto:
 {
-  "headline": string (título profesional corto, ej. "Gerente de Ventas Senior"),
+  "headline": string (título profesional corto, específico del área detectada),
   "summary": string (3-4 líneas),
-  "skills": string[] (8-14 habilidades relevantes),
+  "skills": string[] (8-14 habilidades relevantes al área),
   "experience": [{ "role": string, "company": string, "dates": string, "bullets": string[] (2-5 logros por rol) }],
   "education": string[],
   "certifications": string[]
@@ -186,42 +219,58 @@ ${rawText.slice(0, 8000)}`,
   const parsed = JSON.parse(jsonMatch[0]);
 
   return {
-    headline: parsed.headline || "Perfil Profesional",
+    headline: parsed.headline || profile.label,
     summary: parsed.summary || "",
     skills: Array.isArray(parsed.skills) ? parsed.skills : [],
+    century21Skills: profile.century21Skills,
+    experienceSectionLabel: profile.experienceSectionLabel,
     experience: Array.isArray(parsed.experience) ? parsed.experience : [],
     education: Array.isArray(parsed.education) ? parsed.education : [],
     certifications: Array.isArray(parsed.certifications) ? parsed.certifications : [],
   };
 }
 
+const NAVY = "16283F";
+const ACCENT = "A8741F";
+
 function buildDocx(structured: StructuredCv, contact: Contact): Promise<Buffer> {
   const contactLine = [contact.email, contact.phone, contact.location, contact.linkedin]
     .filter(Boolean)
-    .join(" · ");
+    .join("   ·   ");
+
+  function sectionHeading(text: string) {
+    return new Paragraph({
+      spacing: { before: 200, after: 80 },
+      border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: ACCENT, space: 2 } },
+      children: [new TextRun({ text: text.toUpperCase(), bold: true, size: 20, color: NAVY, characterSpacing: 10 })],
+    });
+  }
 
   const children: Paragraph[] = [
-    new Paragraph({
-      children: [new TextRun({ text: contact.name, bold: true, size: 32 })],
-    }),
-    new Paragraph({
-      children: [new TextRun({ text: structured.headline, size: 24, color: "2563eb" })],
-    }),
-    new Paragraph({ children: [new TextRun({ text: contactLine, size: 20, color: "555555" })] }),
-    new Paragraph({ text: "" }),
-    new Paragraph({ text: "Resumen Profesional", heading: HeadingLevel.HEADING_2 }),
+    new Paragraph({ children: [new TextRun({ text: contact.name, bold: true, size: 34, color: NAVY })] }),
+    new Paragraph({ children: [new TextRun({ text: structured.headline, size: 24, color: ACCENT, bold: true })] }),
+    new Paragraph({ children: [new TextRun({ text: contactLine, size: 19, color: "555555" })] }),
+
+    sectionHeading("Resumen Profesional"),
     new Paragraph({ children: [new TextRun(structured.summary)] }),
-    new Paragraph({ text: "" }),
-    new Paragraph({ text: "Habilidades Clave", heading: HeadingLevel.HEADING_2 }),
-    new Paragraph({ children: [new TextRun(structured.skills.join(" · "))] }),
-    new Paragraph({ text: "" }),
-    new Paragraph({ text: "Experiencia Profesional", heading: HeadingLevel.HEADING_2 }),
+
+    sectionHeading("Habilidades Clave"),
+    new Paragraph({ children: [new TextRun(structured.skills.join("  ·  "))] }),
   ];
 
+  if (structured.century21Skills.length > 0) {
+    children.push(
+      new Paragraph({ spacing: { before: 120 }, children: [new TextRun({ text: "Competencias del Siglo XXI", bold: true, size: 19 })] }),
+      new Paragraph({ children: [new TextRun(structured.century21Skills.join("  ·  "))] })
+    );
+  }
+
+  children.push(sectionHeading(structured.experienceSectionLabel));
   for (const exp of structured.experience) {
     const roleLine = [exp.role, exp.company].filter(Boolean).join(" — ");
     children.push(
       new Paragraph({
+        spacing: { before: 100 },
         children: [
           new TextRun({ text: roleLine, bold: true }),
           ...(exp.dates ? [new TextRun({ text: `  (${exp.dates})`, color: "555555" })] : []),
@@ -229,30 +278,25 @@ function buildDocx(structured: StructuredCv, contact: Contact): Promise<Buffer> 
       })
     );
     for (const bullet of exp.bullets) {
-      children.push(new Paragraph({ children: [new TextRun(`• ${bullet}`)] }));
+      children.push(new Paragraph({ children: [new TextRun(`•  ${bullet}`)] }));
     }
-    children.push(new Paragraph({ text: "" }));
   }
 
   if (structured.education.length > 0) {
-    children.push(new Paragraph({ text: "Educación", heading: HeadingLevel.HEADING_2 }));
+    children.push(sectionHeading("Educación"));
     for (const edu of structured.education) {
       children.push(new Paragraph({ children: [new TextRun(edu)] }));
     }
-    children.push(new Paragraph({ text: "" }));
   }
 
   if (structured.certifications.length > 0) {
-    children.push(new Paragraph({ text: "Certificaciones", heading: HeadingLevel.HEADING_2 }));
+    children.push(sectionHeading("Cursos y Certificaciones"));
     for (const cert of structured.certifications) {
       children.push(new Paragraph({ children: [new TextRun(cert)] }));
     }
   }
 
-  const doc = new Document({
-    sections: [{ children }],
-  });
-
+  const doc = new Document({ sections: [{ children }] });
   return Packer.toBuffer(doc);
 }
 
@@ -271,14 +315,20 @@ function buildPdf(structured: StructuredCv, contact: Contact): Promise<Buffer> {
       .filter(Boolean)
       .join("  ·  ");
 
-    doc.font("Helvetica-Bold").fontSize(20).text(contact.name);
-    doc.font("Helvetica").fontSize(13).fillColor("#2563eb").text(structured.headline);
-    doc.fontSize(10).fillColor("#555555").text(contactLine);
+    doc.font("Helvetica-Bold").fontSize(21).fillColor("#16283F").text(contact.name);
+    doc.font("Helvetica-Bold").fontSize(13).fillColor("#A8741F").text(structured.headline);
+    doc.font("Helvetica").fontSize(10).fillColor("#555555").text(contactLine);
     doc.moveDown();
 
     function heading(text: string) {
-      doc.font("Helvetica-Bold").fontSize(13).fillColor("#111111").text(text);
-      doc.moveDown(0.3);
+      doc.font("Helvetica-Bold").fontSize(12).fillColor("#16283F").text(text.toUpperCase(), { characterSpacing: 0.6 });
+      doc
+        .moveTo(doc.x, doc.y + 2)
+        .lineTo(doc.page.width - doc.page.margins.right, doc.y + 2)
+        .strokeColor("#A8741F")
+        .lineWidth(1.5)
+        .stroke();
+      doc.moveDown(0.4);
     }
     function body(text: string) {
       doc.font("Helvetica").fontSize(10.5).fillColor("#222222").text(text);
@@ -292,7 +342,13 @@ function buildPdf(structured: StructuredCv, contact: Contact): Promise<Buffer> {
     body(structured.skills.join("  ·  "));
     doc.moveDown();
 
-    heading("Experiencia Profesional");
+    if (structured.century21Skills.length > 0) {
+      doc.font("Helvetica-Bold").fontSize(10.5).fillColor("#16283F").text("Competencias del Siglo XXI");
+      body(structured.century21Skills.join("  ·  "));
+      doc.moveDown();
+    }
+
+    heading(structured.experienceSectionLabel);
     for (const exp of structured.experience) {
       const roleLine = [exp.role, exp.company].filter(Boolean).join(" — ");
       doc.font("Helvetica-Bold").fontSize(11).fillColor("#111111").text(roleLine + (exp.dates ? `  (${exp.dates})` : ""));
@@ -309,12 +365,17 @@ function buildPdf(structured: StructuredCv, contact: Contact): Promise<Buffer> {
     }
 
     if (structured.certifications.length > 0) {
-      heading("Certificaciones");
+      heading("Cursos y Certificaciones");
       structured.certifications.forEach((cert) => body(cert));
     }
 
     doc.end();
   });
+}
+
+export interface GeneratedCv {
+  buffer: Buffer;
+  professionLabel: string;
 }
 
 export async function generateTailoredCv(params: {
@@ -324,20 +385,27 @@ export async function generateTailoredCv(params: {
   contact: Contact;
   platformSkills?: PlatformSkill[];
   format?: CvFormat;
-}): Promise<Buffer> {
+}): Promise<GeneratedCv> {
   const platformSkills = params.platformSkills || [];
+  const profile = detectProfession(params.rawText);
+
   let structured: StructuredCv;
   if (isMentorAgentEnabled()) {
     try {
-      structured = await structureCvWithClaude(params.rawText, params.mode, params.targetJob, platformSkills);
+      structured = await structureCvWithClaude(params.rawText, params.mode, params.targetJob, platformSkills, profile);
     } catch {
-      structured = heuristicStructureCv(params.rawText, params.mode, params.targetJob);
-      structured = mergePlatformSkills(structured, platformSkills);
+      structured = heuristicStructureCv(params.rawText, params.mode, params.targetJob, profile);
+      const merged = mergePlatformSkills(structured.skills, structured.summary, platformSkills);
+      structured = { ...structured, skills: merged.skills, summary: merged.summary };
     }
   } else {
-    structured = heuristicStructureCv(params.rawText, params.mode, params.targetJob);
-    structured = mergePlatformSkills(structured, platformSkills);
+    structured = heuristicStructureCv(params.rawText, params.mode, params.targetJob, profile);
+    const merged = mergePlatformSkills(structured.skills, structured.summary, platformSkills);
+    structured = { ...structured, skills: merged.skills, summary: merged.summary };
   }
 
-  return params.format === "pdf" ? buildPdf(structured, params.contact) : buildDocx(structured, params.contact);
+  const buffer =
+    params.format === "pdf" ? await buildPdf(structured, params.contact) : await buildDocx(structured, params.contact);
+
+  return { buffer, professionLabel: profile.label };
 }

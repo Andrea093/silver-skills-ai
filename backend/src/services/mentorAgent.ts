@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { env, isMentorAgentEnabled } from "../lib/env";
-import { buildPortalSearchLinks, searchJobs } from "./jobAggregator";
+import { buildPortalSearchLinks, searchJobs, Modality } from "./jobAggregator";
 import { searchCoursesByTopic } from "./courseCatalog";
 
 export interface MentorCard {
@@ -18,6 +18,8 @@ interface UserProfileForMentor {
   employabilityScore: number;
   skills: { name: string; level: number }[];
   country: string;
+  location?: string;
+  modality?: Modality;
 }
 
 const tools: Anthropic.Tool[] = [
@@ -30,6 +32,8 @@ const tools: Anthropic.Tool[] = [
       properties: {
         query: { type: "string", description: "Rol o palabra clave a buscar, ej. 'consultor digital'" },
         country: { type: "string", description: "Código de país ISO2 en minúsculas, ej. mx, co, ar, cl, pe, br" },
+        location: { type: "string", description: "Ciudad, ej. 'Bogotá' — usa la del perfil del usuario si la tiene" },
+        modality: { type: "string", enum: ["remote", "hybrid", "onsite", "any"], description: "Modalidad de trabajo preferida" },
       },
       required: ["query"],
     },
@@ -50,8 +54,11 @@ const tools: Anthropic.Tool[] = [
 
 async function executeTool(name: string, input: any, profile: UserProfileForMentor) {
   if (name === "search_jobs") {
-    const jobs = await searchJobs(input.query, input.country || profile.country);
-    const portalLinks = buildPortalSearchLinks(input.query, input.country || profile.country);
+    const country = input.country || profile.country;
+    const location = input.location || profile.location;
+    const modality = input.modality || profile.modality || "any";
+    const jobs = await searchJobs(input.query, country, { location, modality });
+    const portalLinks = buildPortalSearchLinks(input.query, country, location, modality);
     return { jobs: jobs.slice(0, 6), portalLinks };
   }
   if (name === "search_courses") {
@@ -67,7 +74,9 @@ Perfil del usuario actual:
 - Nombre: ${profile.name}
 - Índice de empleabilidad: ${profile.employabilityScore}%
 - Habilidades: ${profile.skills.map((s) => `${s.name} (${s.level}%)`).join(", ") || "sin evaluar aún"}
-- País: ${profile.country}
+- País: ${profile.country}${profile.location ? `\n- Ciudad preferida: ${profile.location}` : ""}${
+  profile.modality && profile.modality !== "any" ? `\n- Modalidad preferida: ${profile.modality}` : ""
+}
 
 Cuando el usuario pregunte por vacantes, empleos u oportunidades laborales, SIEMPRE usa la herramienta search_jobs antes de responder — nunca inventes vacantes ni empresas.
 Cuando el usuario pida cursos, rutas de aprendizaje o cómo mejorar una habilidad, SIEMPRE usa search_courses antes de responder — nunca inventes cursos ni links.
@@ -155,8 +164,8 @@ async function runFallbackMentor(userMessage: string, profile: UserProfileForMen
     message = `Para responder eso necesito conocer tu perfil primero. Completa la Evaluación (menú "Evaluación") o sube tu CV en "Transición" — con eso puedo buscarte vacantes y cursos reales que sí apliquen a ti, en vez de darte algo genérico.`;
   } else if (wantsJobs) {
     const topSkill = profile.skills.sort((a, b) => b.level - a.level)[0].name;
-    const jobs = await searchJobs(topSkill, profile.country);
-    const portalLinks = buildPortalSearchLinks(topSkill, profile.country);
+    const jobs = await searchJobs(topSkill, profile.country, { location: profile.location, modality: profile.modality });
+    const portalLinks = buildPortalSearchLinks(topSkill, profile.country, profile.location, profile.modality);
     cards.push({ type: "job", data: { jobs: jobs.slice(0, 6), portalLinks } });
     message = `Basado en tu habilidad más fuerte (${topSkill}), encontré vacantes reales y enlaces de búsqueda directa en los portales principales. Revisa las tarjetas debajo.`;
   } else if (wantsCourses) {

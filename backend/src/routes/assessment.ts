@@ -3,13 +3,25 @@ import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/requireAuth";
-import { computeAssessment, heuristicSummary, WIZARD_STEPS } from "../services/assessmentScoring";
+import { computeAssessment, heuristicSummary, detectSkillLevels, WIZARD_STEPS } from "../services/assessmentScoring";
 import { env, isMentorAgentEnabled } from "../lib/env";
 
 export const assessmentRouter = Router();
 
 assessmentRouter.get("/steps", (_req, res) => {
   res.json({ steps: WIZARD_STEPS });
+});
+
+const detectSkillsSchema = z.object({
+  experienceText: z.string().min(1),
+  cvExtractedSkills: z.array(z.string()).optional(),
+});
+
+assessmentRouter.post("/detect-skills", requireAuth, (req, res) => {
+  const parsed = detectSkillsSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Datos inválidos" });
+  const skills = detectSkillLevels(parsed.data.experienceText, parsed.data.cvExtractedSkills || []);
+  res.json({ skills });
 });
 
 const submitSchema = z.object({

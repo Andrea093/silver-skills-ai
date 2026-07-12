@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { ArrowLeft, ArrowRight, Sparkles, TrendingUp } from "lucide-react";
+import { ArrowLeft, ArrowRight, Sparkles, TrendingUp, CheckCircle2, FileText } from "lucide-react";
 import { api } from "../lib/api";
 import { Card, ProgressBar, Badge, Button } from "../components/ui";
+import { CvDropzone } from "../components/CvDropzone";
 import { useAuth } from "../context/AuthContext";
+import { CvAnalysisResult } from "../types";
 
 interface WizardStep {
   id: string;
   title: string;
   description: string;
-  type: "textarea" | "skill-sliders" | "multi-select" | "goal-form";
+  type: "textarea" | "cv-upload" | "skill-sliders" | "multi-select" | "goal-form";
   placeholder?: string;
   options?: string[];
 }
@@ -32,7 +34,10 @@ export function Evaluacion() {
   const [steps, setSteps] = useState<WizardStep[]>([]);
   const [stepIndex, setStepIndex] = useState(0);
   const [experienceText, setExperienceText] = useState("");
+  const [cvResult, setCvResult] = useState<CvAnalysisResult | null>(null);
   const [skillLevels, setSkillLevels] = useState<Record<string, number>>({});
+  const [detectedSkills, setDetectedSkills] = useState<Set<string>>(new Set());
+  const [detectingSkills, setDetectingSkills] = useState(false);
   const [interests, setInterests] = useState<string[]>([]);
   const [goal, setGoal] = useState("");
   const [weeklyHours, setWeeklyHours] = useState(5);
@@ -45,7 +50,7 @@ export function Evaluacion() {
       const skillsStep = data.steps.find((s) => s.type === "skill-sliders");
       if (skillsStep?.options) {
         const initial: Record<string, number> = {};
-        skillsStep.options.forEach((o) => (initial[o] = 50));
+        skillsStep.options.forEach((o) => (initial[o] = 40));
         setSkillLevels(initial);
       }
     });
@@ -56,7 +61,36 @@ export function Evaluacion() {
   const step = steps[stepIndex];
   const progressPct = Math.round(((stepIndex + 1) / steps.length) * 100);
 
+  async function detectSkills() {
+    setDetectingSkills(true);
+    try {
+      const res = await api.post<{ skills: { name: string; level: number; detected: boolean }[] }>(
+        "/assessment/detect-skills",
+        { experienceText, cvExtractedSkills: cvResult?.extractedSkills || [] }
+      );
+      const levels: Record<string, number> = {};
+      const detected = new Set<string>();
+      res.skills.forEach((s) => {
+        levels[s.name] = s.level;
+        if (s.detected) detected.add(s.name);
+      });
+      setSkillLevels(levels);
+      setDetectedSkills(detected);
+      setSteps((prev) =>
+        prev.map((s) => (s.type === "skill-sliders" ? { ...s, options: res.skills.map((sk) => sk.name) } : s))
+      );
+    } catch {
+      // keep whatever defaults were already loaded — the person can still adjust sliders manually
+    } finally {
+      setDetectingSkills(false);
+    }
+  }
+
   async function handleNext() {
+    const nextStep = steps[stepIndex + 1];
+    if (nextStep?.type === "skill-sliders") {
+      await detectSkills();
+    }
     if (stepIndex < steps.length - 1) {
       setStepIndex(stepIndex + 1);
       return;
@@ -159,6 +193,31 @@ export function Evaluacion() {
           </div>
         </Card>
 
+        <Card className="border border-accent-200 bg-accent-50">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <Badge tone="accent" icon={Sparkles}>Premium</Badge>
+                <h2 className="font-semibold">
+                  {cvResult ? "Genera tu CV optimizado" : "Sube tu CV para generar una versión optimizada"}
+                </h2>
+              </div>
+              <p className="mt-1 text-sm text-gray-600">
+                {cvResult
+                  ? "Usa esta evaluación y tu CV para crear un documento ATS, o adaptado a una vacante real específica."
+                  : "Ve a Transición para subir tu CV y desbloquear el generador — ya con estas habilidades listas para incluir."}
+              </p>
+            </div>
+            <Button
+              variant="secondary"
+              icon={FileText}
+              onClick={() => navigate("/transicion", cvResult ? { state: { cvResult } } : undefined)}
+            >
+              {cvResult ? "Generar mi CV" : "Ir a Transición"}
+            </Button>
+          </div>
+        </Card>
+
         <div className="flex justify-end gap-3">
           <Button onClick={() => navigate("/transicion")} icon={ArrowRight} iconPosition="right">
             Ver Mapa de Transición Laboral
@@ -203,19 +262,40 @@ export function Evaluacion() {
           />
         )}
 
+        {step.type === "cv-upload" && (
+          <div>
+            <CvDropzone
+              onUploaded={setCvResult}
+              title=""
+              description=""
+            />
+            <p className="mt-3 text-xs text-gray-500">
+              Puedes omitir este paso con "Siguiente" si prefieres no subir tu CV ahora.
+            </p>
+          </div>
+        )}
+
         {step.type === "skill-sliders" && (
           <div className="space-y-4">
+            {detectingSkills && <p className="text-sm text-gray-500">Detectando habilidades de tu experiencia y CV...</p>}
             {step.options?.map((opt) => (
               <div key={opt}>
-                <div className="mb-1 flex justify-between text-sm">
-                  <span>{opt}</span>
-                  <span className="text-gray-500">{skillLevels[opt] ?? 50}%</span>
+                <div className="mb-1 flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-1.5">
+                    {opt}
+                    {detectedSkills.has(opt) && (
+                      <span title="Detectado automáticamente">
+                        <CheckCircle2 size={13} strokeWidth={2.5} className="text-emerald-600" />
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-gray-500">{skillLevels[opt] ?? 40}%</span>
                 </div>
                 <input
                   type="range"
                   min={0}
                   max={100}
-                  value={skillLevels[opt] ?? 50}
+                  value={skillLevels[opt] ?? 40}
                   onChange={(e) => setSkillLevels({ ...skillLevels, [opt]: Number(e.target.value) })}
                   className="w-full accent-brand-700"
                 />
@@ -291,7 +371,7 @@ export function Evaluacion() {
           </Button>
           <Button
             onClick={handleNext}
-            disabled={submitting || (step.type === "textarea" && !experienceText.trim())}
+            disabled={submitting || detectingSkills || (step.type === "textarea" && !experienceText.trim())}
             icon={stepIndex === steps.length - 1 ? undefined : ArrowRight}
             iconPosition="right"
           >

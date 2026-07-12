@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
-import { Clock, TrendingUp, UploadCloud, Sparkles, ExternalLink, Bookmark, Check, FileSearch } from "lucide-react";
+import { Clock, TrendingUp, Sparkles, ExternalLink, Bookmark, Check, FileSearch, Search } from "lucide-react";
 import { api, API_BASE } from "../lib/api";
 import { Card, ProgressBar, Badge, Button } from "../components/ui";
-import { NormalizedJob, PortalSearchLink } from "../types";
+import { CvDropzone } from "../components/CvDropzone";
+import { NormalizedJob, PortalSearchLink, CvAnalysisResult, Modality } from "../types";
 
 interface TransitionData {
   hasProfile: boolean;
@@ -14,17 +15,26 @@ interface TransitionData {
   currentLevel: number | null;
   requiredLevel: number;
   topSkill: string | null;
+  jobSearchQuery: string | null;
   jobs: NormalizedJob[];
   portalLinks: PortalSearchLink[];
 }
 
-interface CvAnalysisResult {
-  id: string;
-  filename: string;
-  extractedSkills: string[];
-  atsScore: number;
-  suggestions: string[];
-}
+const COUNTRIES = [
+  { code: "co", label: "Colombia" },
+  { code: "mx", label: "México" },
+  { code: "ar", label: "Argentina" },
+  { code: "cl", label: "Chile" },
+  { code: "pe", label: "Perú" },
+  { code: "br", label: "Brasil" },
+];
+
+const MODALITIES: { value: Modality; label: string }[] = [
+  { value: "any", label: "Cualquiera" },
+  { value: "remote", label: "Remoto" },
+  { value: "hybrid", label: "Híbrido" },
+  { value: "onsite", label: "Presencial" },
+];
 
 function riskLabel(risk: number) {
   if (risk < 40) return { text: "Bajo riesgo", tone: "success" as const };
@@ -39,12 +49,16 @@ function adaptationLabel(potential: number) {
 }
 
 export function Transicion() {
+  const location = useLocation();
+  const incomingCv = (location.state as { cvResult?: CvAnalysisResult } | null)?.cvResult;
+
   const [data, setData] = useState<TransitionData | null>(null);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
-  const [cvResult, setCvResult] = useState<CvAnalysisResult | null>(null);
-  const [cvUploading, setCvUploading] = useState(false);
-  const [cvError, setCvError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [cvResult, setCvResult] = useState<CvAnalysisResult | null>(incomingCv || null);
+
+  const [country, setCountry] = useState("co");
+  const [city, setCity] = useState("");
+  const [modality, setModality] = useState<Modality>("any");
 
   const [generateMode, setGenerateMode] = useState<"ats" | "vacancy">("ats");
   const [generateFormat, setGenerateFormat] = useState<"docx" | "pdf">("docx");
@@ -53,12 +67,14 @@ export function Transicion() {
   const [generateError, setGenerateError] = useState<string | null>(null);
 
   function loadTransition() {
-    return api.get<TransitionData>("/transition?country=mx").then(setData);
+    const params = new URLSearchParams({ country, modality });
+    if (city.trim()) params.set("location", city.trim());
+    return api.get<TransitionData>(`/transition?${params.toString()}`).then(setData);
   }
 
   useEffect(() => {
     loadTransition();
-  }, []);
+  }, [country, city, modality]);
 
   async function handleSave(job: NormalizedJob) {
     await api.post("/jobs/save", {
@@ -71,23 +87,6 @@ export function Transicion() {
       salaryRange: job.salary,
     });
     setSavedIds((prev) => new Set(prev).add(`${job.source}:${job.externalId}`));
-  }
-
-  async function handleFile(file: File) {
-    setCvError(null);
-    setCvUploading(true);
-    setCvResult(null);
-    try {
-      const form = new FormData();
-      form.append("cv", file);
-      const res = await api.post<CvAnalysisResult>("/cv/analyze", form);
-      setCvResult(res);
-      await loadTransition(); // a successful CV upload can turn hasProfile from false to true
-    } catch (err: any) {
-      setCvError(err.message || "Error al analizar el CV");
-    } finally {
-      setCvUploading(false);
-    }
   }
 
   async function handleGenerateCv() {
@@ -130,63 +129,6 @@ export function Transicion() {
   if (!data) return <p className="text-gray-500">Cargando...</p>;
 
   const risk = data.automationRisk !== null ? riskLabel(data.automationRisk) : null;
-
-  const cvUploadCard = (
-    <Card>
-      <h2 className="mb-1 font-semibold">Análisis de Hoja de Vida</h2>
-      <p className="mb-4 text-sm text-gray-500">
-        Sube tu currículum y lo analizaremos para identificar habilidades, experiencia y optimizarlo para sistemas ATS
-      </p>
-      <div
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => {
-          e.preventDefault();
-          const file = e.dataTransfer.files?.[0];
-          if (file) handleFile(file);
-        }}
-        onClick={() => fileInputRef.current?.click()}
-        className="cursor-pointer rounded-xl border-2 border-dashed border-gray-300 p-10 text-center transition-colors hover:border-brand-400 hover:bg-brand-50/40"
-      >
-        <UploadCloud className="mx-auto text-brand-600" size={32} strokeWidth={1.75} />
-        <p className="mt-2 font-medium">Arrastra tu CV aquí o haz clic para seleccionar</p>
-        <p className="text-sm text-gray-500">Formatos soportados: PDF, DOC, DOCX (máx. 5MB)</p>
-        <input
-          ref={fileInputRef}
-          type="file"
-          aria-label="Subir currículum"
-          accept=".pdf,.doc,.docx"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) handleFile(file);
-          }}
-        />
-      </div>
-      {cvUploading && <p className="mt-3 text-sm text-gray-500">Analizando tu CV...</p>}
-      {cvError && <p className="mt-3 text-sm text-red-600">{cvError}</p>}
-      {cvResult && (
-        <div className="mt-4 space-y-3 rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-500">Puntaje ATS estimado</span>
-            <span className="text-lg font-semibold text-brand-800">{cvResult.atsScore}%</span>
-          </div>
-          <ProgressBar value={cvResult.atsScore} />
-          {cvResult.extractedSkills.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {cvResult.extractedSkills.map((s) => (
-                <Badge key={s}>{s}</Badge>
-              ))}
-            </div>
-          )}
-          <ul className="list-disc space-y-1 pl-5 text-sm text-gray-600">
-            {cvResult.suggestions.map((s, i) => (
-              <li key={i}>{s}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </Card>
-  );
 
   return (
     <div className="space-y-6">
@@ -280,7 +222,14 @@ export function Transicion() {
         </>
       )}
 
-      {cvUploadCard}
+      <Card>
+        <CvDropzone
+          onUploaded={(res) => {
+            setCvResult(res);
+            loadTransition(); // a successful CV upload can turn hasProfile from false to true
+          }}
+        />
+      </Card>
 
       {cvResult && (
         <Card className="border border-accent-200 bg-white">
@@ -360,7 +309,57 @@ export function Transicion() {
 
       {data.hasProfile && (
         <Card>
-          <h2 className="mb-4 font-semibold">Oportunidades Laborales Compatibles</h2>
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <h2 className="font-semibold">Oportunidades Laborales Compatibles</h2>
+            <div className="flex flex-wrap items-end gap-2">
+              <div>
+                <label htmlFor="job-country" className="mb-1 block text-xs font-medium text-gray-500">País</label>
+                <select
+                  id="job-country"
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-brand-500 focus:outline-none"
+                >
+                  {COUNTRIES.map((c) => (
+                    <option key={c.code} value={c.code}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="job-city" className="mb-1 block text-xs font-medium text-gray-500">Ciudad</label>
+                <div className="relative">
+                  <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    id="job-city"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="Ej. Bogotá"
+                    className="w-32 rounded-lg border border-gray-300 py-1.5 pl-7 pr-2 text-sm focus:border-brand-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="job-modality" className="mb-1 block text-xs font-medium text-gray-500">Modalidad</label>
+                <select
+                  id="job-modality"
+                  value={modality}
+                  onChange={(e) => setModality(e.target.value as Modality)}
+                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-brand-500 focus:outline-none"
+                >
+                  {MODALITIES.map((m) => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {data.jobSearchQuery && (
+            <p className="mb-3 text-xs text-gray-500">
+              Buscando: <strong>{data.jobSearchQuery}</strong>
+            </p>
+          )}
+
           {data.jobs.length === 0 ? (
             <p className="text-sm text-gray-500">No se encontraron vacantes en este momento. Usa los enlaces de búsqueda directa abajo.</p>
           ) : (

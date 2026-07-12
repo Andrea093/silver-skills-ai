@@ -2,15 +2,17 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/requireAuth";
-import { searchJobs, buildPortalSearchLinks } from "../services/jobAggregator";
+import { searchJobs, buildPortalSearchLinks, Modality } from "../services/jobAggregator";
 
 export const jobsRouter = Router();
 
 jobsRouter.get("/search", requireAuth, async (req, res) => {
   const query = String(req.query.q || "");
   const country = String(req.query.country || "mx");
-  const jobs = await searchJobs(query, country);
-  const portalLinks = buildPortalSearchLinks(query, country);
+  const location = req.query.location ? String(req.query.location) : undefined;
+  const modality = (req.query.modality as Modality) || "any";
+  const jobs = await searchJobs(query, country, { location, modality });
+  const portalLinks = buildPortalSearchLinks(query, country, location, modality);
   res.json({ jobs, portalLinks });
 });
 

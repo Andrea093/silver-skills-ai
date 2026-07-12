@@ -7,7 +7,9 @@ export const env = {
   anthropicApiKey: process.env.ANTHROPIC_API_KEY || undefined,
   adzunaAppId: process.env.ADZUNA_APP_ID || undefined,
   adzunaAppKey: process.env.ADZUNA_APP_KEY || undefined,
+  joobleApiKey: process.env.JOOBLE_API_KEY || undefined,
 };
 
 export const isMentorAgentEnabled = () => Boolean(env.anthropicApiKey);
 export const isAdzunaEnabled = () => Boolean(env.adzunaAppId && env.adzunaAppKey);
+export const isJoobleEnabled = () => Boolean(env.joobleApiKey);
