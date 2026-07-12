@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
-import { Home, Compass, TrendingUp, BookOpen, Sparkles, ShieldCheck, LogOut, Type } from "lucide-react";
+import { Home, Compass, TrendingUp, RefreshCw, BookOpen, Sparkles, ShieldCheck, LogOut, Type } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { applyTextScale, getStoredTextScale, nextTextScale, TextScale } from "../lib/textScale";
 
 const NAV_ITEMS = [
-  { to: "/", label: "Inicio", icon: Home },
+  { to: "/dashboard", label: "Inicio", icon: Home },
   { to: "/evaluacion", label: "Evaluación", icon: Compass },
   { to: "/transicion", label: "Transición", icon: TrendingUp },
+  { to: "/actualizacion", label: "Actualización", icon: RefreshCw },
   { to: "/cursos", label: "Cursos", icon: BookOpen },
   { to: "/mentor", label: "Mentor IA", icon: Sparkles },
 ];
@@ -72,7 +73,7 @@ export function NavBar() {
 
         <nav className="flex flex-wrap items-center gap-1">
           {NAV_ITEMS.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.to === "/"} className={linkClass}>
+            <NavLink key={item.to} to={item.to} className={linkClass}>
               <item.icon size={16} strokeWidth={2.25} />
               {item.label}
             </NavLink>

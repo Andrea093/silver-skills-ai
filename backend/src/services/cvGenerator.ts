@@ -65,7 +65,7 @@ const KNOWN_SKILLS = [
   "Finanzas",
 ];
 
-function dedupeCaseInsensitive(items: string[]): string[] {
+export function dedupeCaseInsensitive(items: string[]): string[] {
   const seen = new Set<string>();
   const result: string[] = [];
   for (const item of items) {

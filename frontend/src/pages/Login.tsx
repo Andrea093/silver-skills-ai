@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { ShieldCheck, TrendingUp, BookOpen } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { ApiError } from "../lib/api";
@@ -12,12 +12,14 @@ const HIGHLIGHTS = [
 ];
 
 export function Login() {
-  const { login } = useAuth();
+  const { user, loading: authLoading, login } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("maria.gonzalez@example.com");
   const [password, setPassword] = useState("demo1234");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  if (!authLoading && user) return <Navigate to="/dashboard" replace />;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -25,7 +27,7 @@ export function Login() {
     setLoading(true);
     try {
       await login(email, password);
-      navigate("/");
+      navigate("/dashboard");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error al iniciar sesión");
     } finally {

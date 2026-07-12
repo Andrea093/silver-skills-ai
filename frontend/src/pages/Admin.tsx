@@ -35,7 +35,7 @@ export function Admin() {
     if (user?.role === "admin") load();
   }, [user]);
 
-  if (user && user.role !== "admin") return <Navigate to="/" replace />;
+  if (user && user.role !== "admin") return <Navigate to="/dashboard" replace />;
 
   async function handleReset(id: string) {
     setError(null);
