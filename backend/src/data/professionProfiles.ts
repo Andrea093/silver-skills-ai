@@ -22,6 +22,9 @@ export interface ProfessionProfile {
   // a teacher's subject (Física, Matemáticas...). Distinct from atsKeywords, which cover the
   // *general* role skills common to anyone in the profession (how you teach, not what you teach).
   specialties?: Specialty[];
+  // Real, field-specific growth/interest areas offered in the "Áreas de Interés" wizard step —
+  // distinct from atsKeywords (current-role skills): these are where the field itself is heading.
+  interestAreas: string[];
 }
 
 // Curated from the well-known P21 ("Framework for 21st Century Learning") and OECD Learning
@@ -54,6 +57,7 @@ export const PROFESSION_PROFILES: ProfessionProfile[] = [
       "Diseño instruccional", "TIC en educación", "Pruebas estandarizadas", "Acompañamiento académico",
     ],
     century21Skills: ["Aprendizaje continuo (lifelong learning)", "Alfabetización digital", "Creatividad e innovación", "Comunicación efectiva"],
+    interestAreas: ["Tecnología Educativa (EdTech)", "Educación Inclusiva", "Bilingüismo e Idiomas", "Neuroeducación", "Gestión de Aula Virtual"],
     specialties: [
       {
         id: "fisica",
@@ -130,6 +134,7 @@ export const PROFESSION_PROFILES: ProfessionProfile[] = [
       "Manejo de urgencias", "Educación en salud", "Normatividad sanitaria",
     ],
     century21Skills: ["Resolución de problemas complejos", "Comunicación efectiva", "Colaboración en equipos multiculturales", "Adaptabilidad al cambio"],
+    interestAreas: ["Telemedicina", "Salud Mental", "Bienestar Corporativo", "Gerontología y Cuidado del Adulto Mayor", "Medicina Preventiva"],
     specialties: [
       {
         id: "medicina-general",
@@ -182,6 +187,7 @@ export const PROFESSION_PROFILES: ProfessionProfile[] = [
       "Declaración de impuestos", "Presupuesto y flujo de caja", "Excel avanzado", "Software contable (SAP/Siigo)",
     ],
     century21Skills: ["Pensamiento crítico", "Gestión de la información", "Alfabetización digital", "Resolución de problemas complejos"],
+    interestAreas: ["Finanzas Sostenibles (ESG)", "Fintech", "Automatización Contable", "Criptoactivos y Blockchain", "Planeación Financiera Personal"],
     specialties: [
       {
         id: "tributaria",
@@ -222,6 +228,7 @@ export const PROFESSION_PROFILES: ProfessionProfile[] = [
       "Bases de datos", "Automatización de procesos", "Integración de sistemas", "Análisis de requerimientos",
     ],
     century21Skills: ["Resolución de problemas complejos", "Pensamiento crítico", "Alfabetización digital", "Aprendizaje continuo (lifelong learning)"],
+    interestAreas: ["Inteligencia Artificial", "Ciberseguridad", "Computación en la Nube", "Sostenibilidad y Tecnología Verde", "Internet de las Cosas (IoT)"],
     specialties: [
       {
         id: "desarrollo-software",
@@ -268,6 +275,7 @@ export const PROFESSION_PROFILES: ProfessionProfile[] = [
       "CRM", "Fidelización de clientes", "Presentaciones comerciales",
     ],
     century21Skills: ["Comunicación efectiva", "Adaptabilidad al cambio", "Colaboración en equipos multiculturales", "Creatividad e innovación"],
+    interestAreas: ["Ventas Consultivas Digitales", "E-commerce", "Experiencia del Cliente (CX)", "Automatización de Ventas (Sales Ops)", "Marketing de Relacionamiento"],
     specialties: [
       {
         id: "ventas-b2b",
@@ -308,6 +316,7 @@ export const PROFESSION_PROFILES: ProfessionProfile[] = [
       "Normatividad laboral", "Evaluación de desempeño",
     ],
     century21Skills: ["Comunicación efectiva", "Colaboración en equipos multiculturales", "Gestión de la información", "Adaptabilidad al cambio"],
+    interestAreas: ["Bienestar Laboral", "People Analytics", "Diversidad e Inclusión", "Trabajo Remoto e Híbrido", "Cultura Organizacional"],
     specialties: [
       {
         id: "nomina-compensacion",
@@ -348,6 +357,7 @@ export const PROFESSION_PROFILES: ProfessionProfile[] = [
       "Campañas publicitarias", "Marketing digital",
     ],
     century21Skills: ["Creatividad e innovación", "Alfabetización digital", "Comunicación efectiva", "Pensamiento crítico"],
+    interestAreas: ["Marketing de Contenidos", "Inteligencia Artificial en Marketing", "Comunicación Digital", "Marca Personal", "Marketing de Influencers"],
     specialties: [
       {
         id: "marketing-digital-performance",
@@ -388,6 +398,7 @@ export const PROFESSION_PROFILES: ProfessionProfile[] = [
       "Planeación logística", "Indicadores de gestión (KPI)",
     ],
     century21Skills: ["Resolución de problemas complejos", "Gestión de la información", "Adaptabilidad al cambio", "Colaboración en equipos multiculturales"],
+    interestAreas: ["Logística Sostenible", "Automatización y Robótica", "Comercio Electrónico y Última Milla", "Analítica de Operaciones", "Cadena de Suministro Global"],
     specialties: [
       {
         id: "cadena-suministro",
@@ -426,6 +437,7 @@ export const PROFESSION_PROFILES: ProfessionProfile[] = [
       "Redacción de contratos", "Litigio", "Cumplimiento normativo", "Asesoría legal", "Derecho corporativo",
     ],
     century21Skills: ["Pensamiento crítico", "Comunicación efectiva", "Gestión de la información", "Resolución de problemas complejos"],
+    interestAreas: ["Derecho Digital y Protección de Datos", "Legaltech", "Compliance y Ética Corporativa", "Arbitraje y Resolución de Conflictos", "Sostenibilidad y ESG Legal"],
     specialties: [
       {
         id: "derecho-laboral",
@@ -462,6 +474,7 @@ export const GENERAL_PROFILE: ProfessionProfile = {
   experienceSectionLabel: "Experiencia Profesional",
   atsKeywords: ["Trabajo en equipo", "Orientación a resultados", "Comunicación", "Organización"],
   century21Skills: CORE_CENTURY21_SKILLS.slice(0, 4),
+  interestAreas: ["IA y Tecnología", "Marketing Digital", "Liderazgo", "Finanzas", "Emprendimiento", "Salud Digital"],
 };
 
 export const CENTURY21_SKILLS = CORE_CENTURY21_SKILLS;

@@ -151,6 +151,31 @@ function countMentions(normalizedText: string, name: string): number {
   return matches ? matches.length : 0;
 }
 
+const SKILL_NAME_STOPWORDS = new Set([
+  "de", "del", "la", "el", "los", "las", "y", "en", "con", "al", "un", "una", "para", "por", "a",
+]);
+
+function significantWords(name: string): string[] {
+  return normalizeForMatch(name)
+    .replace(/[()]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !SKILL_NAME_STOPWORDS.has(w));
+}
+
+/**
+ * Fraction (0..1) of a skill name's significant words that appear anywhere in the text — looser
+ * than requiring the full phrase verbatim (real writing rarely uses the exact curated phrase), and
+ * gives a meaningful middle ground between "fully detected" and "zero evidence" instead of a rigid
+ * binary cliff, where two skills with genuinely different partial evidence would otherwise show the
+ * identical flat floor.
+ */
+function wordOverlapFraction(normalizedText: string, name: string): number {
+  const words = significantWords(name);
+  if (words.length === 0) return 0;
+  const matched = words.filter((w) => normalizedText.includes(w)).length;
+  return matched / words.length;
+}
+
 /**
  * Pre-fills the skill-sliders step from real evidence — the profession's (and detected specialty's)
  * keyword bank matched against the free-text experience answer, the CV's extracted skills, career
@@ -186,8 +211,21 @@ export function detectSkillLevels(
 
   const fromText: DetectedSkill[] = candidates.map((name) => {
     const mentions = countMentions(lower, name);
-    const detected = mentions > 0;
-    return { name, level: detected ? boostedLevel(75, mentions) : 35, detected };
+    const overlap = wordOverlapFraction(lower, name);
+    // Every significant word of the skill name shows up somewhere in the text (not necessarily as
+    // one contiguous phrase) — strong enough evidence to count as genuinely detected.
+    const detected = overlap >= 1;
+    let level: number;
+    if (detected) {
+      level = boostedLevel(75, Math.max(1, mentions));
+    } else if (overlap > 0) {
+      // Partial evidence — some but not all of the skill's words appear. Scaled 35..75 by how much
+      // overlaps, instead of collapsing every partial/no match down to the same flat floor.
+      level = Math.round(35 + overlap * 40);
+    } else {
+      level = 35;
+    }
+    return { name, level, detected };
   });
 
   const fromCv: DetectedSkill[] = cvExtractedSkills.map((name) => ({

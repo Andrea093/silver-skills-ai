@@ -66,10 +66,14 @@ export function Evaluacion() {
     setDetectingSkills(true);
     setDetectSkillsError(false);
     try {
-      const res = await api.post<{ skills: { name: string; level: number; detected: boolean }[] }>(
-        "/assessment/detect-skills",
-        { experienceText, cvExtractedSkills: cvResult?.extractedSkills || [], cvAnalysisId: cvResult?.id }
-      );
+      const res = await api.post<{
+        skills: { name: string; level: number; detected: boolean }[];
+        interestOptions: string[];
+      }>("/assessment/detect-skills", {
+        experienceText,
+        cvExtractedSkills: cvResult?.extractedSkills || [],
+        cvAnalysisId: cvResult?.id,
+      });
       const levels: Record<string, number> = {};
       const detected = new Set<string>();
       res.skills.forEach((s) => {
@@ -79,7 +83,11 @@ export function Evaluacion() {
       setSkillLevels(levels);
       setDetectedSkills(detected);
       setSteps((prev) =>
-        prev.map((s) => (s.type === "skill-sliders" ? { ...s, options: res.skills.map((sk) => sk.name) } : s))
+        prev.map((s) => {
+          if (s.type === "skill-sliders") return { ...s, options: res.skills.map((sk) => sk.name) };
+          if (s.type === "multi-select" && res.interestOptions?.length) return { ...s, options: res.interestOptions };
+          return s;
+        })
       );
       return true;
     } catch {

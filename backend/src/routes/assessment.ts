@@ -5,6 +5,7 @@ import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/requireAuth";
 import { computeAssessment, heuristicSummary, detectSkillLevels, WIZARD_STEPS } from "../services/assessmentScoring";
 import { parseCvSections } from "../services/cvParser";
+import { detectProfession } from "../data/professionProfiles";
 import { env, isMentorAgentEnabled } from "../lib/env";
 
 export const assessmentRouter = Router();
@@ -32,7 +33,10 @@ assessmentRouter.post("/detect-skills", requireAuth, async (req, res) => {
   }
 
   const skills = detectSkillLevels(parsed.data.experienceText, parsed.data.cvExtractedSkills || [], cvExperience);
-  res.json({ skills });
+  // Real, field-specific growth areas instead of the same generic 6-item list for everyone —
+  // detected the same way as everything else here, from the person's own text.
+  const profile = detectProfession(parsed.data.experienceText);
+  res.json({ skills, interestOptions: profile.interestAreas });
 });
 
 const submitSchema = z.object({
