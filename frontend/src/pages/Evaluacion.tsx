@@ -307,7 +307,9 @@ export function Evaluacion() {
             )}
             <p className="text-xs text-gray-500">
               Estos niveles se detectan automáticamente de tu experiencia y tu CV — no se editan
-              manualmente, para que reflejen evidencia real y no una estimación propia.
+              manualmente, para que reflejen evidencia real y no una estimación propia. Este es solo
+              un primer vistazo: en <Link to="/actualizacion" className="font-medium text-brand-700 hover:underline">Actualización</Link>{" "}
+              puedes tomar un cuestionario con preguntas puntuales para una medición más precisa.
             </p>
             {!detectSkillsError &&
               step.options?.map((opt) => (

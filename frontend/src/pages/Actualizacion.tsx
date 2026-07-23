@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { RefreshCw, CheckCircle2, ExternalLink, BookMarked } from "lucide-react";
+import { RefreshCw, CheckCircle2, ExternalLink, BookMarked, ClipboardList } from "lucide-react";
 import { api } from "../lib/api";
 import { Card, Badge, Button } from "../components/ui";
 
@@ -31,6 +31,19 @@ interface SkillsUpdateData {
   disciplinaryOwned?: string[] | null;
   disciplinaryGaps?: SkillGap[] | null;
   disciplinaryTotalGapsCount?: number | null;
+}
+
+interface QuizQuestionDTO {
+  skill: string;
+  question: string;
+  options: string[];
+}
+
+interface QuizData {
+  professionLabel: string;
+  behaviorQuestions: QuizQuestionDTO[];
+  specialtyLabel: string | null;
+  knowledgeQuestions: QuizQuestionDTO[];
 }
 
 function OwnedSkillsCard({ title, owned, emptyText }: { title: string; owned: string[] | undefined | null; emptyText: string }) {
@@ -105,12 +118,79 @@ function GapsCard({
   );
 }
 
+function QuizForm({
+  questions,
+  onSubmit,
+  submitting,
+}: {
+  questions: QuizQuestionDTO[];
+  onSubmit: (answers: { skill: string; selectedIndex: number }[]) => void;
+  submitting: boolean;
+}) {
+  const [selected, setSelected] = useState<Record<string, number>>({});
+  const allAnswered = questions.length > 0 && questions.every((q) => selected[q.skill] !== undefined);
+
+  return (
+    <div className="space-y-5">
+      {questions.map((q) => (
+        <div key={q.skill}>
+          <p className="mb-2 text-sm font-medium text-gray-800">{q.question}</p>
+          <div className="space-y-1.5">
+            {q.options.map((opt, i) => (
+              <label
+                key={i}
+                className="flex cursor-pointer items-start gap-2 rounded-lg border border-gray-200 p-2.5 text-sm text-gray-700 hover:border-brand-300"
+              >
+                <input
+                  type="radio"
+                  name={q.skill}
+                  checked={selected[q.skill] === i}
+                  onChange={() => setSelected((prev) => ({ ...prev, [q.skill]: i }))}
+                  className="mt-0.5 accent-brand-700"
+                />
+                {opt}
+              </label>
+            ))}
+          </div>
+        </div>
+      ))}
+      <Button
+        disabled={!allAnswered || submitting}
+        onClick={() => onSubmit(questions.map((q) => ({ skill: q.skill, selectedIndex: selected[q.skill] })))}
+      >
+        {submitting ? "Guardando..." : "Enviar respuestas"}
+      </Button>
+    </div>
+  );
+}
+
 export function Actualizacion() {
   const [data, setData] = useState<SkillsUpdateData | null>(null);
+  const [quiz, setQuiz] = useState<QuizData | null>(null);
+  const [showGeneralQuiz, setShowGeneralQuiz] = useState(false);
+  const [showDisciplinaryQuiz, setShowDisciplinaryQuiz] = useState(false);
+  const [submittingQuiz, setSubmittingQuiz] = useState(false);
+
+  function loadData() {
+    api.get<SkillsUpdateData>("/skills-update").then(setData);
+  }
 
   useEffect(() => {
-    api.get<SkillsUpdateData>("/skills-update").then(setData);
+    loadData();
+    api.get<QuizData>("/skills-quiz").then(setQuiz);
   }, []);
+
+  async function handleQuizSubmit(dimension: "general" | "disciplinary", answers: { skill: string; selectedIndex: number }[]) {
+    setSubmittingQuiz(true);
+    try {
+      await api.post("/skills-quiz/submit", { dimension, answers });
+      loadData();
+      if (dimension === "general") setShowGeneralQuiz(false);
+      else setShowDisciplinaryQuiz(false);
+    } finally {
+      setSubmittingQuiz(false);
+    }
+  }
 
   if (!data) return <p className="text-gray-500">Cargando...</p>;
 
@@ -175,6 +255,29 @@ export function Actualizacion() {
                 totalGapsCount={data.totalGapsCount}
                 emptyText="¡Ya cubres todas las habilidades clave que identificamos para tu profesión!"
               />
+              {quiz && quiz.behaviorQuestions.length > 0 && (
+                <Card className="border border-brand-100 bg-brand-50/60">
+                  <div className="mb-1 flex items-center gap-2 text-brand-900">
+                    <ClipboardList size={17} strokeWidth={2.25} />
+                    <h3 className="font-semibold">Mide tu nivel con preguntas reales</h3>
+                  </div>
+                  <p className="mb-3 text-sm text-brand-900">
+                    Un párrafo de texto no puede medir con precisión tus habilidades. Responde estas
+                    preguntas puntuales para reemplazar la estimación por evidencia real.
+                  </p>
+                  {!showGeneralQuiz ? (
+                    <Button variant="outline" onClick={() => setShowGeneralQuiz(true)}>
+                      Tomar cuestionario
+                    </Button>
+                  ) : (
+                    <QuizForm
+                      questions={quiz.behaviorQuestions}
+                      submitting={submittingQuiz}
+                      onSubmit={(answers) => handleQuizSubmit("general", answers)}
+                    />
+                  )}
+                </Card>
+              )}
             </div>
           </div>
 
@@ -201,6 +304,29 @@ export function Actualizacion() {
                   totalGapsCount={data.disciplinaryTotalGapsCount}
                   emptyText="¡Ya cubres todo el conocimiento disciplinar que identificamos para tu especialidad!"
                 />
+                {quiz && quiz.knowledgeQuestions.length > 0 && (
+                  <Card className="border border-brand-100 bg-brand-50/60">
+                    <div className="mb-1 flex items-center gap-2 text-brand-900">
+                      <ClipboardList size={17} strokeWidth={2.25} />
+                      <h3 className="font-semibold">Pon a prueba tu conocimiento de {data.specialtyLabel}</h3>
+                    </div>
+                    <p className="mb-3 text-sm text-brand-900">
+                      A diferencia de la dimensión anterior, aquí no se trata de autoevaluarte — son
+                      preguntas de conocimiento real, para saber con certeza qué debes actualizar.
+                    </p>
+                    {!showDisciplinaryQuiz ? (
+                      <Button variant="outline" onClick={() => setShowDisciplinaryQuiz(true)}>
+                        Tomar cuestionario
+                      </Button>
+                    ) : (
+                      <QuizForm
+                        questions={quiz.knowledgeQuestions}
+                        submitting={submittingQuiz}
+                        onSubmit={(answers) => handleQuizSubmit("disciplinary", answers)}
+                      />
+                    )}
+                  </Card>
+                )}
               </div>
             ) : (
               <Card className="border border-accent-200 bg-accent-50">
