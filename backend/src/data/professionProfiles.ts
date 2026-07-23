@@ -854,7 +854,7 @@ export const PROFESSION_PROFILES: ProfessionProfile[] = [
     label: "Ingeniería y Tecnología",
     matchKeywords: [
       "ingeniero", "ingeniera", "desarrollador", "desarrolladora", "software", "programación",
-      "sistemas", "ti ", "tecnología", "datos", "devops", "arquitectura de software", "backend", "frontend",
+      "sistemas", "ti", "tecnología", "datos", "devops", "arquitectura de software", "backend", "frontend",
     ],
     experienceSectionLabel: "Experiencia Técnica",
     atsKeywords: [
@@ -1947,13 +1947,27 @@ export const GENERAL_PROFILE: ProfessionProfile = {
 
 export const CENTURY21_SKILLS = CORE_CENTURY21_SKILLS;
 
+// A plain substring check is unsafe for single-word keywords: a short acronym like "TI" needs a
+// word boundary (otherwise it also matches inside unrelated words like "actividad" or "particular"),
+// but a manually-appended trailing space (the old workaround) silently fails whenever that word is
+// the very last one in the text — exactly the case for a goal like "cambiar de empleo a TI". Regex
+// word boundaries handle start/middle/end of text uniformly. Multi-word phrases keep the simple
+// substring check, since false-positives there are effectively a non-issue.
+function matchesKeyword(haystack: string, keyword: string): boolean {
+  const normalized = normalizeForMatch(keyword).trim();
+  if (!normalized) return false;
+  if (/\s/.test(normalized)) return haystack.includes(normalized);
+  const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b${escaped}\\b`).test(haystack);
+}
+
 export function detectProfession(rawText: string, headline?: string): ProfessionProfile {
   const haystack = normalizeForMatch(`${headline || ""} ${rawText}`);
 
   let best: { profile: ProfessionProfile; score: number } | null = null;
   for (const profile of PROFESSION_PROFILES) {
     const score = profile.matchKeywords.reduce(
-      (sum, kw) => sum + (haystack.includes(normalizeForMatch(kw)) ? 1 : 0),
+      (sum, kw) => sum + (matchesKeyword(haystack, kw) ? 1 : 0),
       0
     );
     if (score > 0 && (!best || score > best.score)) {
@@ -1977,7 +1991,7 @@ export function detectSpecialty(profile: ProfessionProfile, rawText: string, hea
   let best: { specialty: Specialty; score: number } | null = null;
   for (const specialty of profile.specialties) {
     const score = specialty.matchKeywords.reduce(
-      (sum, kw) => sum + (haystack.includes(normalizeForMatch(kw)) ? 1 : 0),
+      (sum, kw) => sum + (matchesKeyword(haystack, kw) ? 1 : 0),
       0
     );
     if (score > 0 && (!best || score > best.score)) {

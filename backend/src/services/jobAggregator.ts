@@ -47,9 +47,18 @@ const QUERY_STOPWORDS = new Set([
 
 function significantWords(query: string): string[] {
   return query
-    .toLowerCase()
     .split(/\s+/)
-    .filter((w) => w.length > 2 && !QUERY_STOPWORDS.has(w));
+    .filter((rawWord) => {
+      const lower = rawWord.toLowerCase();
+      if (QUERY_STOPWORDS.has(lower)) return false;
+      if (rawWord.length > 2) return true;
+      // Short (1-2 letter) words are usually noise, but a real acronym written in caps in the
+      // original text ("TI", "IA") carries meaning and shouldn't be dropped just for being short —
+      // otherwise a goal like "cambiar de empleo a TI" degrades to the near-meaningless "cambiar"/
+      // "empleo" once TI is silently discarded.
+      return /[a-zA-ZÁÉÍÓÚÑáéíóúñ]/.test(rawWord) && rawWord === rawWord.toUpperCase();
+    })
+    .map((w) => w.toLowerCase());
 }
 
 /**

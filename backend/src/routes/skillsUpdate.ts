@@ -10,15 +10,27 @@ export const skillsUpdateRouter = Router();
 
 const MAX_ENRICHED_GAPS = 6;
 
+// A generic keyword search on a consumer MOOC platform frequently has no real course on a niche,
+// specific disciplinary term (e.g. LinkedIn Learning has no matches at all for "Auditoría interna";
+// Coursera's fuzzy search for "Mecánica clásica" surfaces unrelated results like sports marketing).
+// Funneling the user to a single provider means a dead-end search *feels* like a broken link, even
+// though the URL itself is real and loads. Offering several real search links instead of one gives
+// a genuine second/third chance without ever fabricating course content.
+const MAX_SEARCH_LINK_OPTIONS = 3;
+
 async function buildGapAnalysis(targetSkills: string[], ownedLower: Set<string>) {
   const owned = targetSkills.filter((name) => ownedLower.has(name.toLowerCase()));
   const allGaps = targetSkills.filter((name) => !ownedLower.has(name.toLowerCase()));
   const gapsToEnrich = allGaps.slice(0, MAX_ENRICHED_GAPS);
   const gaps = await Promise.all(
-    gapsToEnrich.map(async (skill) => ({
-      skill,
-      resource: (await searchCoursesByTopic(skill))[0] ?? null,
-    }))
+    gapsToEnrich.map(async (skill) => {
+      const matches = await searchCoursesByTopic(skill);
+      const isSearchFallback = matches.length > 0 && matches[0].isSearchLink;
+      return {
+        skill,
+        resources: isSearchFallback ? matches.slice(0, MAX_SEARCH_LINK_OPTIONS) : matches.slice(0, 1),
+      };
+    })
   );
   return { owned, gaps, totalGapsCount: allGaps.length };
 }

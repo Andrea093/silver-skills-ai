@@ -62,7 +62,7 @@ export async function searchCoursesByTopic(topic: string) {
       );
     })
     .slice(0, 5)
-    .map((c) => ({ ...c, tags: JSON.parse(c.tags) }));
+    .map((c) => ({ ...c, tags: JSON.parse(c.tags), isSearchLink: false }));
 
   if (matches.length > 0) return matches;
 

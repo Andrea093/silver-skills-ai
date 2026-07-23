@@ -16,7 +16,7 @@ interface SkillResource {
 
 interface SkillGap {
   skill: string;
-  resource: SkillResource | null;
+  resources: SkillResource[];
 }
 
 interface SkillsUpdateData {
@@ -86,29 +86,45 @@ function GapsCard({
         <p className="text-sm text-gray-500">{emptyText}</p>
       ) : (
         <div className="space-y-4">
-          {gaps.map(({ skill, resource }) => (
-            <div key={skill} className="rounded-xl border border-gray-200 p-4">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <Badge tone="accent">Por actualizar</Badge>
-                  <div className="mt-1 font-medium">{skill}</div>
-                  {resource && <div className="mt-1 text-sm text-gray-500">{resource.provider}</div>}
-                </div>
-                {resource && (
-                  <div className="text-right">
-                    <div className={`font-semibold ${resource.isFree ? "text-emerald-600" : "text-gray-800"}`}>
-                      {resource.isFree ? "Gratis" : resource.priceLabel}
-                    </div>
-                    <a href={resource.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block">
-                      <Button size="md" icon={ExternalLink} iconPosition="right">
-                        {resource.isSearchLink ? "Buscar" : "Comenzar ahora"}
-                      </Button>
-                    </a>
+          {gaps.map(({ skill, resources }) => {
+            const isMultiSearch = resources.length > 1;
+            return (
+              <div key={skill} className="rounded-xl border border-gray-200 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <Badge tone="accent">Por actualizar</Badge>
+                    <div className="mt-1 font-medium">{skill}</div>
+                    {resources.length === 1 && (
+                      <div className="mt-1 text-sm text-gray-500">{resources[0].provider}</div>
+                    )}
+                    {isMultiSearch && (
+                      <div className="mt-1 text-sm text-gray-500">
+                        Sin curso curado para este tema: prueba en varias plataformas.
+                      </div>
+                    )}
                   </div>
-                )}
+                  {resources.length > 0 && (
+                    <div className="flex flex-col items-end gap-2">
+                      {resources.map((resource) => (
+                        <div key={resource.provider} className="text-right">
+                          {!isMultiSearch && (
+                            <div className={`font-semibold ${resource.isFree ? "text-emerald-600" : "text-gray-800"}`}>
+                              {resource.isFree ? "Gratis" : resource.priceLabel}
+                            </div>
+                          )}
+                          <a href={resource.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block">
+                            <Button size="md" icon={ExternalLink} iconPosition="right">
+                              {resource.isSearchLink ? `Buscar en ${resource.provider}` : "Comenzar ahora"}
+                            </Button>
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           {totalGapsCount && gaps && totalGapsCount > gaps.length && (
             <p className="text-sm text-gray-500">+{totalGapsCount - gaps.length} habilidades más para actualizar.</p>
           )}
