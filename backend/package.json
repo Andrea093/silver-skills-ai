@@ -10,7 +10,9 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts",
     "prisma:studio": "prisma studio",
-    "build:prod": "prisma generate --schema=prisma/schema.production.prisma && prisma db push --schema=prisma/schema.production.prisma --accept-data-loss && tsx prisma/seed.ts && tsc -p tsconfig.json"
+    "build:prod": "prisma generate --schema=prisma/schema.production.prisma && tsc -p tsconfig.json",
+    "prisma:push:prod": "prisma db push --schema=prisma/schema.production.prisma --accept-data-loss",
+    "prisma:seed:prod": "tsx prisma/seed.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

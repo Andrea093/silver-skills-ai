@@ -1,9 +1,16 @@
 // Production variant of schema.prisma — identical models, PostgreSQL datasource.
 // Kept as a separate file (instead of swapping schema.prisma) so local development keeps using
-// zero-install SQLite. Deployed with `prisma db push` (not `migrate deploy`): SQLite and
+// zero-install SQLite. Applied with `prisma db push` (not `migrate deploy`): SQLite and
 // PostgreSQL migration SQL are not interchangeable, and `db push` sidesteps that by diffing the
 // schema directly against the live database — the right tradeoff for a prototype, not meant to
 // replace a real migration history in a long-lived production system.
+//
+// Render's build environment can't open a raw TCP connection to the database (only outbound
+// HTTPS works there — confirmed by `prisma db push` failing at build time for every connection
+// variant tried, while the identical connection string worked immediately from a normal machine).
+// So this is NOT run automatically on deploy — after changing this file, run manually from a
+// normal machine against the production DATABASE_URL: `npm run prisma:push:prod` (and
+// `npm run prisma:seed:prod` if seed data changed too), then push the code.
 //
 // IMPORTANT: keep this file's models in sync with schema.prisma whenever one changes.
 
