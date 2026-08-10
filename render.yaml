@@ -9,10 +9,10 @@
 # Frontend and backend are on different onrender.com subdomains, so the frontend calls the
 # backend directly (cross-origin, with credentials) instead of relying on a same-origin proxy —
 # Render's static-site path rewrite to another Render service proved unreliable in testing.
-
-databases:
-  - name: silver-skills-db
-    plan: free
+#
+# Database: Render's free Postgres plan auto-expires 90 days after creation (and cannot be
+# resumed without upgrading to a paid instance), so the database is hosted on Supabase's free
+# tier instead — set DATABASE_URL manually in the Render dashboard (see comment below).
 
 services:
   - name: silver-skills-backend
@@ -28,12 +28,18 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # Render's outbound network resolves Supabase's pooler hostname to an IPv6 address it can't
+      # actually route, causing every DB connection to fail with a generic "Can't reach database
+      # server" (confirmed: the same connection string worked immediately from a normal machine).
+      # This forces Node's DNS resolution to prefer IPv4, which Render can route.
+      - key: NODE_OPTIONS
+        value: --dns-result-order=ipv4first
       - key: JWT_SECRET
         generateValue: true
+      # Paste the Supabase Postgres connection string yourself in the Render dashboard
+      # (Environment tab) — never commit a real connection string to git.
       - key: DATABASE_URL
-        fromDatabase:
-          name: silver-skills-db
-          property: connectionString
+        sync: false
       - key: CLIENT_ORIGIN
         value: https://silver-skills-frontend.onrender.com
       - key: PORT
