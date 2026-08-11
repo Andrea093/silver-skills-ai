@@ -3,12 +3,6 @@
 // reproducible without external dependencies. When ANTHROPIC_API_KEY is configured, the free-text
 // "experiencia previa" answer is additionally sent to Claude to enrich the textual summary.
 
-import { detectProfession, detectSpecialty } from "../data/professionProfiles";
-import { computeYearsOfExperience, ParsedExperienceEntry } from "./cvParser";
-import { normalizeForMatch } from "../lib/textNormalize";
-
-const GENERIC_SKILL_POOL = ["Liderazgo", "Comunicación", "Gestión", "Excel", "Análisis de Datos", "Inglés"];
-
 export interface AssessmentAnswers {
   experienceText: string;
   currentSkills: { name: string; level: number }[];
@@ -28,8 +22,11 @@ export interface RecommendedSkill {
   growthPct: number;
 }
 
-const SOFT_SKILLS = ["Liderazgo", "Comunicación", "Gestión"];
-const DIGITAL_SKILLS = ["Excel", "IA Generativa", "Análisis de Datos", "Marketing Digital"];
+// Names must match real BehaviorQuestion `skill` fields (CENTURY21_BEHAVIOR_QUESTIONS /
+// profession behaviorQuestions) so these averages reflect actual quiz-measured levels instead of
+// silently falling back to the 50 default because no resultSkill matches the name.
+const SOFT_SKILLS = ["Colaboración en equipos multiculturales", "Comunicación efectiva"];
+const DIGITAL_SKILLS = ["Alfabetización digital", "Gestión de la información"];
 
 const AUTOMATION_PRONE_KEYWORDS = [
   "manufactura",
@@ -64,12 +61,9 @@ export const WIZARD_STEPS = [
   },
   {
     id: "skills",
-    title: "Habilidades Detectadas",
-    description: "Detectados a partir de tu experiencia y tu CV — no se editan manualmente",
-    type: "skill-sliders",
-    // Default/fallback options when the person skips the CV step and detect-skills hasn't run yet
-    // — the frontend replaces these with the profession-specific list from /assessment/detect-skills.
-    options: GENERIC_SKILL_POOL,
+    title: "Preguntas de Habilidades",
+    description: "Preguntas puntuales sobre cómo trabajas — no una estimación a partir de tu texto",
+    type: "quiz",
   },
   {
     id: "interests",
@@ -139,109 +133,14 @@ export function heuristicSummary(answers: AssessmentAnswers, computed: ReturnTyp
   return parts.filter(Boolean).join(" ");
 }
 
-export interface DetectedSkill {
-  name: string;
-  level: number;
-  detected: boolean;
-}
-
-function countMentions(normalizedText: string, name: string): number {
-  const escaped = normalizeForMatch(name).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const matches = normalizedText.match(new RegExp(escaped, "g"));
-  return matches ? matches.length : 0;
-}
-
-const SKILL_NAME_STOPWORDS = new Set([
-  "de", "del", "la", "el", "los", "las", "y", "en", "con", "al", "un", "una", "para", "por", "a",
-]);
-
-function significantWords(name: string): string[] {
-  return normalizeForMatch(name)
-    .replace(/[()]/g, " ")
-    .split(/\s+/)
-    .filter((w) => w.length > 2 && !SKILL_NAME_STOPWORDS.has(w));
-}
-
 /**
- * Fraction (0..1) of a skill name's significant words that appear anywhere in the text — looser
- * than requiring the full phrase verbatim (real writing rarely uses the exact curated phrase), and
- * gives a meaningful middle ground between "fully detected" and "zero evidence" instead of a rigid
- * binary cliff, where two skills with genuinely different partial evidence would otherwise show the
- * identical flat floor.
+ * Scores a BARS (behaviorally-anchored rating scale) answer: the option index selected out of a
+ * 5-anchor low-to-high frequency scale maps to a level on a fixed 25-90 scale, not a free 0-100
+ * guess — same formula used for both the initial evaluation quiz and the Actualización quiz, so a
+ * given answer always means the same thing regardless of where it was answered.
  */
-function wordOverlapFraction(normalizedText: string, name: string): number {
-  const words = significantWords(name);
-  if (words.length === 0) return 0;
-  const matched = words.filter((w) => normalizedText.includes(w)).length;
-  return matched / words.length;
-}
-
-/**
- * Pre-fills the skill-sliders step from real evidence — the profession's (and detected specialty's)
- * keyword bank matched against the free-text experience answer, the CV's extracted skills, career
- * length (from the CV's own parsed date ranges), and how many times each skill is actually mentioned
- * — instead of a single flat "keyword present or not" boolean. The person no longer adjusts these
- * manually (the frontend renders them read-only), so the numbers need to reflect real evidence, not
- * a static guess.
- *
- * Boosts only ever apply on top of a detected base tier (75 text / 70 CV) — a skill with zero
- * evidence stays at the 35 floor regardless of how many years of experience the person has, since
- * career length isn't itself proof of THAT specific skill.
- */
-export function detectSkillLevels(
-  experienceText: string,
-  cvExtractedSkills: string[] = [],
-  cvExperience: ParsedExperienceEntry[] = []
-): DetectedSkill[] {
-  const profile = detectProfession(experienceText);
-  const specialty = detectSpecialty(profile, experienceText);
-  const lower = normalizeForMatch(experienceText);
-
-  const candidates = Array.from(
-    new Set([...profile.atsKeywords, ...(specialty?.disciplinarySkills || []), ...GENERIC_SKILL_POOL])
-  );
-
-  const yearsOfExperience = computeYearsOfExperience(cvExperience);
-  const experienceBoost = Math.min(15, yearsOfExperience);
-
-  function boostedLevel(baseLevel: number, mentions: number): number {
-    const mentionBoost = Math.min(10, Math.max(0, mentions - 1) * 3);
-    return Math.min(95, baseLevel + experienceBoost + mentionBoost);
-  }
-
-  const fromText: DetectedSkill[] = candidates.map((name) => {
-    const mentions = countMentions(lower, name);
-    const overlap = wordOverlapFraction(lower, name);
-    // Every significant word of the skill name shows up somewhere in the text (not necessarily as
-    // one contiguous phrase) — strong enough evidence to count as genuinely detected.
-    const detected = overlap >= 1;
-    let level: number;
-    if (detected) {
-      level = boostedLevel(75, Math.max(1, mentions));
-    } else if (overlap > 0) {
-      // Partial evidence — some but not all of the skill's words appear. Scaled 35..75 by how much
-      // overlaps, instead of collapsing every partial/no match down to the same flat floor.
-      level = Math.round(35 + overlap * 40);
-    } else {
-      level = 35;
-    }
-    return { name, level, detected };
-  });
-
-  const fromCv: DetectedSkill[] = cvExtractedSkills.map((name) => ({
-    name,
-    level: boostedLevel(70, countMentions(lower, name)),
-    detected: true,
-  }));
-
-  const merged = new Map<string, DetectedSkill>();
-  for (const skill of [...fromCv, ...fromText]) {
-    const key = skill.name.toLowerCase();
-    const existing = merged.get(key);
-    if (!existing || skill.level > existing.level) merged.set(key, skill);
-  }
-
-  return Array.from(merged.values())
-    .sort((a, b) => Number(b.detected) - Number(a.detected) || b.level - a.level)
-    .slice(0, 8);
+export function scoreBarsAnswer(selectedIndex: number, optionsCount: number): number {
+  const maxIdx = optionsCount - 1;
+  const clampedIndex = Math.max(0, Math.min(maxIdx, selectedIndex));
+  return Math.round(25 + (clampedIndex / maxIdx) * 65); // 25 / 41 / 58 / 74 / 90 for a 5-option scale
 }

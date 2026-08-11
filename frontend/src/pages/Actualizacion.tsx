@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { RefreshCw, CheckCircle2, ExternalLink, BookMarked, ClipboardList } from "lucide-react";
 import { api } from "../lib/api";
 import { Card, Badge, Button } from "../components/ui";
+import { QuizForm, QuizQuestionDTO } from "../components/QuizForm";
 
 interface SkillResource {
   title: string;
@@ -31,12 +32,6 @@ interface SkillsUpdateData {
   disciplinaryOwned?: string[] | null;
   disciplinaryGaps?: SkillGap[] | null;
   disciplinaryTotalGapsCount?: number | null;
-}
-
-interface QuizQuestionDTO {
-  skill: string;
-  question: string;
-  options: string[];
 }
 
 interface QuizData {
@@ -131,52 +126,6 @@ function GapsCard({
         </div>
       )}
     </Card>
-  );
-}
-
-function QuizForm({
-  questions,
-  onSubmit,
-  submitting,
-}: {
-  questions: QuizQuestionDTO[];
-  onSubmit: (answers: { skill: string; selectedIndex: number }[]) => void;
-  submitting: boolean;
-}) {
-  const [selected, setSelected] = useState<Record<string, number>>({});
-  const allAnswered = questions.length > 0 && questions.every((q) => selected[q.skill] !== undefined);
-
-  return (
-    <div className="space-y-5">
-      {questions.map((q) => (
-        <div key={q.skill}>
-          <p className="mb-2 text-sm font-medium text-gray-800">{q.question}</p>
-          <div className="space-y-1.5">
-            {q.options.map((opt, i) => (
-              <label
-                key={i}
-                className="flex cursor-pointer items-start gap-2 rounded-lg border border-gray-200 p-2.5 text-sm text-gray-700 hover:border-brand-300"
-              >
-                <input
-                  type="radio"
-                  name={q.skill}
-                  checked={selected[q.skill] === i}
-                  onChange={() => setSelected((prev) => ({ ...prev, [q.skill]: i }))}
-                  className="mt-0.5 accent-brand-700"
-                />
-                {opt}
-              </label>
-            ))}
-          </div>
-        </div>
-      ))}
-      <Button
-        disabled={!allAnswered || submitting}
-        onClick={() => onSubmit(questions.map((q) => ({ skill: q.skill, selectedIndex: selected[q.skill] })))}
-      >
-        {submitting ? "Guardando..." : "Enviar respuestas"}
-      </Button>
-    </div>
   );
 }
 

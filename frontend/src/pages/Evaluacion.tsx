@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { ArrowLeft, ArrowRight, Sparkles, TrendingUp, CheckCircle2, FileText, RefreshCw, AlertCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Sparkles, TrendingUp, FileText, RefreshCw, AlertCircle } from "lucide-react";
 import { api } from "../lib/api";
 import { Card, ProgressBar, Badge, Button } from "../components/ui";
 import { CvDropzone } from "../components/CvDropzone";
+import { QuizForm, QuizQuestionDTO } from "../components/QuizForm";
 import { useAuth } from "../context/AuthContext";
 import { CvAnalysisResult } from "../types";
 
@@ -12,9 +13,14 @@ interface WizardStep {
   id: string;
   title: string;
   description: string;
-  type: "textarea" | "cv-upload" | "skill-sliders" | "multi-select" | "goal-form";
+  type: "textarea" | "cv-upload" | "quiz" | "multi-select" | "goal-form";
   placeholder?: string;
   options?: string[];
+}
+
+interface QuizAnswer {
+  skill: string;
+  selectedIndex: number;
 }
 
 interface AssessmentResult {
@@ -35,10 +41,12 @@ export function Evaluacion() {
   const [stepIndex, setStepIndex] = useState(0);
   const [experienceText, setExperienceText] = useState("");
   const [cvResult, setCvResult] = useState<CvAnalysisResult | null>(null);
-  const [skillLevels, setSkillLevels] = useState<Record<string, number>>({});
-  const [detectedSkills, setDetectedSkills] = useState<Set<string>>(new Set());
-  const [detectingSkills, setDetectingSkills] = useState(false);
-  const [detectSkillsError, setDetectSkillsError] = useState(false);
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestionDTO[]>([]);
+  const [quizAnswers, setQuizAnswers] = useState<QuizAnswer[]>([]);
+  const [cvSkillNames, setCvSkillNames] = useState<string[]>([]);
+  const [professionLabel, setProfessionLabel] = useState("");
+  const [loadingQuiz, setLoadingQuiz] = useState(false);
+  const [quizLoadError, setQuizLoadError] = useState(false);
   const [interests, setInterests] = useState<string[]>([]);
   const [goal, setGoal] = useState("");
   const [weeklyHours, setWeeklyHours] = useState(5);
@@ -46,15 +54,7 @@ export function Evaluacion() {
   const [result, setResult] = useState<AssessmentResult | null>(null);
 
   useEffect(() => {
-    api.get<{ steps: WizardStep[] }>("/assessment/steps").then((data) => {
-      setSteps(data.steps);
-      const skillsStep = data.steps.find((s) => s.type === "skill-sliders");
-      if (skillsStep?.options) {
-        const initial: Record<string, number> = {};
-        skillsStep.options.forEach((o) => (initial[o] = 40));
-        setSkillLevels(initial);
-      }
-    });
+    api.get<{ steps: WizardStep[] }>("/assessment/steps").then((data) => setSteps(data.steps));
   }, []);
 
   if (steps.length === 0) return <p className="text-gray-500">Cargando...</p>;
@@ -62,70 +62,61 @@ export function Evaluacion() {
   const step = steps[stepIndex];
   const progressPct = Math.round(((stepIndex + 1) / steps.length) * 100);
 
-  async function detectSkills(): Promise<boolean> {
-    setDetectingSkills(true);
-    setDetectSkillsError(false);
+  async function fetchQuizQuestions() {
+    setLoadingQuiz(true);
+    setQuizLoadError(false);
     try {
       const res = await api.post<{
-        skills: { name: string; level: number; detected: boolean }[];
+        professionLabel: string;
         interestOptions: string[];
+        behaviorQuestions: QuizQuestionDTO[];
+        cvSkillNames: string[];
       }>("/assessment/detect-skills", {
         experienceText,
         cvExtractedSkills: cvResult?.extractedSkills || [],
-        cvAnalysisId: cvResult?.id,
       });
-      const levels: Record<string, number> = {};
-      const detected = new Set<string>();
-      res.skills.forEach((s) => {
-        levels[s.name] = s.level;
-        if (s.detected) detected.add(s.name);
-      });
-      setSkillLevels(levels);
-      setDetectedSkills(detected);
+      setQuizQuestions(res.behaviorQuestions);
+      setCvSkillNames(res.cvSkillNames);
+      setProfessionLabel(res.professionLabel);
       setSteps((prev) =>
-        prev.map((s) => {
-          if (s.type === "skill-sliders") return { ...s, options: res.skills.map((sk) => sk.name) };
-          if (s.type === "multi-select" && res.interestOptions?.length) return { ...s, options: res.interestOptions };
-          return s;
-        })
+        prev.map((s) =>
+          s.type === "multi-select" && res.interestOptions?.length ? { ...s, options: res.interestOptions } : s
+        )
       );
-      return true;
     } catch {
-      // The sliders are read-only (values come purely from detection), so unlike a manual-override
-      // UI there's no fallback to "let the person adjust it themselves" — surface the failure and
-      // require a successful retry before letting them proceed.
-      setDetectSkillsError(true);
-      return false;
+      setQuizLoadError(true);
     } finally {
-      setDetectingSkills(false);
+      setLoadingQuiz(false);
     }
   }
 
-  async function handleNext() {
-    const nextStep = steps[stepIndex + 1];
-    if (nextStep?.type === "skill-sliders") {
-      const ok = await detectSkills();
-      if (!ok) return;
-    }
+  async function proceedFromStep(answers: QuizAnswer[] = quizAnswers) {
     if (stepIndex < steps.length - 1) {
       setStepIndex(stepIndex + 1);
       return;
     }
     setSubmitting(true);
     try {
-      const payload = {
-        experienceText,
-        currentSkills: Object.entries(skillLevels).map(([name, level]) => ({ name, level })),
-        interests,
-        goal,
-        weeklyHours,
-      };
+      const payload = { experienceText, quizAnswers: answers, interests, goal, weeklyHours };
       const res = await api.post<AssessmentResult>("/assessment", payload);
       setResult(res);
       await refresh();
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function handleNext() {
+    const nextStep = steps[stepIndex + 1];
+    if (nextStep?.type === "quiz" && quizQuestions.length === 0) {
+      await fetchQuizQuestions();
+    }
+    await proceedFromStep();
+  }
+
+  function handleQuizComplete(answers: QuizAnswer[]) {
+    setQuizAnswers(answers);
+    proceedFromStep(answers);
   }
 
   if (result) {
@@ -291,43 +282,48 @@ export function Evaluacion() {
           </div>
         )}
 
-        {step.type === "skill-sliders" && (
+        {step.type === "quiz" && (
           <div className="space-y-4">
-            {detectingSkills && <p className="text-sm text-gray-500">Detectando habilidades de tu experiencia y CV...</p>}
-            {detectSkillsError && (
+            {loadingQuiz && <p className="text-sm text-gray-500">Preparando tus preguntas...</p>}
+            {quizLoadError && (
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-3">
                 <p className="flex items-center gap-1.5 text-sm text-red-700">
                   <AlertCircle size={15} strokeWidth={2.25} />
-                  No pudimos detectar tus habilidades. Inténtalo de nuevo.
+                  No pudimos preparar tus preguntas. Inténtalo de nuevo.
                 </p>
-                <Button size="md" variant="outline" icon={RefreshCw} onClick={() => detectSkills()}>
-                  Reintentar detección
+                <Button size="md" variant="outline" icon={RefreshCw} onClick={() => fetchQuizQuestions()}>
+                  Reintentar
                 </Button>
               </div>
             )}
-            <p className="text-xs text-gray-500">
-              Estos niveles se detectan automáticamente de tu experiencia y tu CV — no se editan
-              manualmente, para que reflejen evidencia real y no una estimación propia. Este es solo
-              un primer vistazo: en <Link to="/actualizacion" className="font-medium text-brand-700 hover:underline">Actualización</Link>{" "}
-              puedes tomar un cuestionario con preguntas puntuales para una medición más precisa.
-            </p>
-            {!detectSkillsError &&
-              step.options?.map((opt) => (
-                <div key={opt}>
-                  <div className="mb-1 flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-1.5">
-                      {opt}
-                      {detectedSkills.has(opt) && (
-                        <span title="Detectado automáticamente">
-                          <CheckCircle2 size={13} strokeWidth={2.5} className="text-emerald-600" />
-                        </span>
-                      )}
-                    </span>
-                    <span className="text-gray-500">{skillLevels[opt] ?? 40}%</span>
+            {!loadingQuiz && !quizLoadError && quizQuestions.length > 0 && (
+              <>
+                <p className="text-xs text-gray-500">
+                  Preguntas puntuales sobre cómo trabajas en la práctica — no una estimación a partir
+                  de tu texto ni una autoevaluación libre. Incluyen habilidades del siglo XXI
+                  (universales) y algunas específicas de tu perfil detectado
+                  {professionLabel ? ` (${professionLabel})` : ""}.
+                </p>
+                {cvSkillNames.length > 0 && (
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="mb-1.5 text-xs font-medium text-gray-500">
+                      También vimos esto mencionado en tu CV (sin medir aún):
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {cvSkillNames.map((name) => (
+                        <Badge key={name}>{name}</Badge>
+                      ))}
+                    </div>
                   </div>
-                  <ProgressBar value={skillLevels[opt] ?? 40} />
-                </div>
-              ))}
+                )}
+                <QuizForm
+                  questions={quizQuestions}
+                  submitting={submitting}
+                  submitLabel="Guardar y continuar"
+                  onSubmit={handleQuizComplete}
+                />
+              </>
+            )}
           </div>
         )}
 
@@ -396,19 +392,18 @@ export function Evaluacion() {
           >
             Atrás
           </Button>
-          <Button
-            onClick={handleNext}
-            disabled={
-              submitting ||
-              detectingSkills ||
-              detectSkillsError ||
-              (step.type === "textarea" && !experienceText.trim())
-            }
-            icon={stepIndex === steps.length - 1 ? undefined : ArrowRight}
-            iconPosition="right"
-          >
-            {submitting ? "Analizando..." : stepIndex === steps.length - 1 ? "Finalizar" : "Siguiente"}
-          </Button>
+          {step.type !== "quiz" && (
+            <Button
+              onClick={handleNext}
+              disabled={
+                submitting || loadingQuiz || (step.type === "textarea" && !experienceText.trim())
+              }
+              icon={stepIndex === steps.length - 1 ? undefined : ArrowRight}
+              iconPosition="right"
+            >
+              {submitting ? "Analizando..." : stepIndex === steps.length - 1 ? "Finalizar" : "Siguiente"}
+            </Button>
+          )}
         </div>
       </Card>
     </div>

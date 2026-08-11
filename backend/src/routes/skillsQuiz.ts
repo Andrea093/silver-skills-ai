@@ -4,6 +4,7 @@ import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/requireAuth";
 import { detectProfession, detectSpecialty, GENERAL_PROFILE, ProfessionProfile, Specialty } from "../data/professionProfiles";
 import { parseCvSections } from "../services/cvParser";
+import { scoreBarsAnswer } from "../services/assessmentScoring";
 
 export const skillsQuizRouter = Router();
 
@@ -63,9 +64,7 @@ skillsQuizRouter.post("/submit", requireAuth, async (req, res) => {
     for (const answer of parsed.data.answers) {
       const question = profile.behaviorQuestions.find((q) => q.skill === answer.skill);
       if (!question) continue;
-      const maxIdx = question.options.length - 1;
-      const clampedIndex = Math.max(0, Math.min(maxIdx, answer.selectedIndex));
-      const level = Math.round(25 + (clampedIndex / maxIdx) * 65); // 5-option BARS scale -> 25/41/58/74/90
+      const level = scoreBarsAnswer(answer.selectedIndex, question.options.length);
       levelsToSave.push({ skill: answer.skill, level });
     }
   } else {

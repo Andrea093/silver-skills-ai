@@ -1947,6 +1947,112 @@ export const GENERAL_PROFILE: ProfessionProfile = {
 
 export const CENTURY21_SKILLS = CORE_CENTURY21_SKILLS;
 
+// Universal BARS questions for the 9 CORE_CENTURY21_SKILLS — same profession-agnostic phrasing
+// ("en tu trabajo", not "en el aula") so they apply to any profile. Used in the initial evaluation
+// wizard alongside the profession-specific behaviorQuestions above; skill names match
+// CORE_CENTURY21_SKILLS exactly so a scored answer maps directly onto that same Skill row.
+export const CENTURY21_BEHAVIOR_QUESTIONS: BehaviorQuestion[] = [
+  {
+    skill: "Pensamiento crítico",
+    question: "Cuando recibes información que contradice lo que esperabas en el trabajo, ¿qué tan seguido verificas la fuente antes de actuar sobre ella?",
+    options: [
+      "Nunca la verifico, actúo con la primera información que tengo",
+      "Rara vez la verifico",
+      "A veces, depende de qué tan importante sea la decisión",
+      "Frecuentemente la verifico antes de decidir",
+      "Siempre verifico y contrasto antes de actuar",
+    ],
+  },
+  {
+    skill: "Resolución de problemas complejos",
+    question: "Cuando un problema en el trabajo no tiene una solución obvia, ¿qué tan seguido lo divides en partes más pequeñas antes de intentar resolverlo?",
+    options: [
+      "Nunca lo divido, intento resolverlo de una sola vez",
+      "Rara vez",
+      "A veces",
+      "Frecuentemente lo divido en partes manejables",
+      "Siempre analizo el problema por partes antes de actuar",
+    ],
+  },
+  {
+    skill: "Colaboración en equipos multiculturales",
+    question: "Cuando trabajas con personas de formación, edad o cultura distinta a la tuya, ¿qué tan seguido ajustas tu forma de comunicarte para que te entiendan mejor?",
+    options: [
+      "Nunca ajusto mi forma de comunicarme",
+      "Rara vez",
+      "A veces",
+      "Frecuentemente adapto mi comunicación según con quién trabajo",
+      "Siempre busco activamente entender otras perspectivas antes de aportar la mía",
+    ],
+  },
+  {
+    skill: "Comunicación efectiva",
+    question: "Después de explicar algo importante en el trabajo, ¿qué tan seguido confirmas que la otra persona realmente entendió lo que dijiste?",
+    options: [
+      "Nunca confirmo, asumo que se entendió",
+      "Rara vez",
+      "A veces",
+      "Frecuentemente pido que me repitan o resuman lo que entendieron",
+      "Siempre verifico la comprensión antes de continuar",
+    ],
+  },
+  {
+    skill: "Alfabetización digital",
+    question: "Cuando necesitas usar una herramienta digital nueva para tu trabajo (una app, una plataforma, un programa), ¿qué tan seguido logras aprender a usarla por tu cuenta?",
+    options: [
+      "Nunca logro aprenderla sola, necesito que alguien me guíe paso a paso",
+      "Rara vez",
+      "A veces, con algo de ayuda",
+      "Frecuentemente la aprendo explorando por mi cuenta",
+      "Siempre logro aprenderla sola, incluso buscando tutoriales si hace falta",
+    ],
+  },
+  {
+    skill: "Creatividad e innovación",
+    question: "Cuando un método de trabajo ya no funciona bien, ¿qué tan seguido propones una forma distinta de hacerlo en vez de seguir con lo mismo?",
+    options: [
+      "Nunca propongo algo distinto, sigo el método actual aunque no funcione",
+      "Rara vez",
+      "A veces",
+      "Frecuentemente propongo alternativas",
+      "Siempre busco una mejor manera de hacer las cosas",
+    ],
+  },
+  {
+    skill: "Adaptabilidad al cambio",
+    question: "Cuando cambian de un momento a otro las condiciones de algo en lo que estás trabajando (una nueva instrucción, un imprevisto), ¿qué tan seguido logras ajustar tu plan sin que te afecte demasiado?",
+    options: [
+      "Nunca me adapto bien, el cambio me descoloca por completo",
+      "Rara vez",
+      "A veces, me cuesta pero lo logro",
+      "Frecuentemente me ajusto sin mayor problema",
+      "Siempre me adapto con facilidad, incluso lo veo como parte normal del trabajo",
+    ],
+  },
+  {
+    skill: "Aprendizaje continuo (lifelong learning)",
+    question: "Fuera de lo que te exige el trabajo día a día, ¿qué tan seguido dedicas tiempo a aprender algo nuevo relacionado con tu profesión (un curso, un artículo, un video)?",
+    options: [
+      "Nunca dedico tiempo a esto",
+      "Rara vez, solo si es obligatorio",
+      "A veces, cuando encuentro algo que me interesa",
+      "Frecuentemente, busco aprender cosas nuevas con regularidad",
+      "Siempre, tengo el hábito constante de seguir aprendiendo",
+    ],
+  },
+  {
+    skill: "Gestión de la información",
+    question: "Cuando necesitas encontrar información que usaste antes en el trabajo (un documento, un dato, un contacto), ¿qué tan seguido la encuentras rápido porque la tenías organizada?",
+    options: [
+      "Nunca la encuentro rápido, no tengo un sistema para guardar información",
+      "Rara vez",
+      "A veces",
+      "Frecuentemente la encuentro rápido porque tengo cierto orden",
+      "Siempre la encuentro de inmediato, tengo un sistema claro para organizar información",
+    ],
+  },
+];
+
 // A plain substring check is unsafe for single-word keywords: a short acronym like "TI" needs a
 // word boundary (otherwise it also matches inside unrelated words like "actividad" or "particular"),
 // but a manually-appended trailing space (the old workaround) silently fails whenever that word is
