@@ -79,3 +79,36 @@ export interface ChatMessage {
 }
 
 export type Modality = "remote" | "hybrid" | "onsite" | "any";
+
+export type PensionRegime = "rpm" | "rais" | "unknown";
+export type PensionScenario = "same" | "formalize" | "change_sector" | "voluntary_contributions";
+
+export interface PensionInputPayload {
+  age: number;
+  weeksContributed?: number;
+  yearsWorkedEstimate?: number;
+  currentIncome: number;
+  regime: PensionRegime;
+  scenario: PensionScenario;
+}
+
+export interface PensionAmount {
+  amount: number;
+  low: number;
+  high: number;
+}
+
+export interface PensionProjectionResult {
+  weeksContributedUsed: number;
+  baseline: PensionAmount;
+  scenario: PensionAmount;
+  scenarioDeltaPct: number;
+  recommendation: string;
+}
+
+export interface PensionResponse {
+  id: string;
+  input: PensionInputPayload;
+  projection: PensionProjectionResult;
+  createdAt?: string;
+}

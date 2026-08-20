@@ -28,6 +28,7 @@ model User {
   savedJobs   SavedJob[]
   chatMessages ChatMessage[]
   cvAnalyses  CvAnalysis[]
+  pensionInputs PensionInput[]
 }
 
 model Skill {
@@ -123,6 +124,21 @@ model CvAnalysis {
   atsScore    Int
   suggestions String // JSON array of strings
   createdAt   DateTime @default(now())
+
+  @@index([userId])
+}
+
+model PensionInput {
+  id                  String   @id @default(cuid())
+  userId              String
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  age                 Int
+  weeksContributed    Int? // set when the user knows their real cotización history
+  yearsWorkedEstimate Int? // fallback used to approximate weeksContributed when the above is unknown
+  currentIncome       Float
+  regime              String // "rpm" | "rais" | "unknown"
+  scenario            String // "same" | "formalize" | "change_sector" | "voluntary_contributions"
+  createdAt           DateTime @default(now())
 
   @@index([userId])
 }

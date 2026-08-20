@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { Home, Compass, TrendingUp, RefreshCw, BookOpen, Sparkles, ShieldCheck, LogOut, Type } from "lucide-react";
+import { Home, Compass, TrendingUp, RefreshCw, PiggyBank, BookOpen, Sparkles, ShieldCheck, LogOut, Type } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { applyTextScale, getStoredTextScale, nextTextScale, TextScale } from "../lib/textScale";
 
@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { to: "/evaluacion", label: "Evaluación", icon: Compass },
   { to: "/transicion", label: "Transición", icon: TrendingUp },
   { to: "/actualizacion", label: "Actualización", icon: RefreshCw },
+  { to: "/pension", label: "Pensión", icon: PiggyBank },
   { to: "/cursos", label: "Cursos", icon: BookOpen },
   { to: "/mentor", label: "Mentor IA", icon: Sparkles },
 ];

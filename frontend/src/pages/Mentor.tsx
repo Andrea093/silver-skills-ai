@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Sparkles, TrendingUp, Target, BookOpen, Lightbulb, Send, ExternalLink } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { api } from "../lib/api";
@@ -98,16 +98,30 @@ function CardsRenderer({ cards }: { cards: MentorCard[] }) {
 export function Mentor() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [agentEnabled, setAgentEnabled] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const prefillHandled = useRef(false);
 
   useEffect(() => {
     api.get<{ agentEnabled: boolean }>("/mentor/status").then((s) => setAgentEnabled(s.agentEnabled));
     api.get<ChatMessage[]>("/mentor/history").then(setMessages);
   }, []);
+
+  useEffect(() => {
+    // A card elsewhere (e.g. the financial-education topics in Pensión) can deep-link here with a
+    // topic pre-loaded as the first message — same location.state pattern Transición already uses
+    // to hand off a CV result. Guarded so React 18 StrictMode's double-effect in dev doesn't send it twice.
+    const prefillMessage = (location.state as { prefillMessage?: string } | null)?.prefillMessage;
+    if (prefillMessage && !prefillHandled.current) {
+      prefillHandled.current = true;
+      sendMessage(prefillMessage);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });

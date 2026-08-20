@@ -177,6 +177,20 @@ const COURSES = [
     category: "Liderazgo",
     featured: false,
   },
+  {
+    title: "Ahorro y Presupuesto Personal",
+    provider: "Coursera",
+    url: "https://www.coursera.org/search?query=ahorro%20y%20presupuesto%20personal",
+    isFree: true,
+    priceLabel: "Gratis (modo auditoría en la mayoría de cursos)",
+    durationWeeks: 3,
+    level: "Principiante",
+    rating: 4.6,
+    studentsCount: 8400,
+    tags: ["Ahorro", "Presupuesto", "Pensión"],
+    category: "Finanzas",
+    featured: false,
+  },
 ];
 
 async function main() {
@@ -231,6 +245,18 @@ async function main() {
             "Liderazgo Ágil en la Era Digital",
             "Comunicación Efectiva e Inteligencia Emocional",
             "Generative AI for Everyone",
+          ].map((t) => byTitle.get(t))
+        ),
+      },
+      {
+        title: "Ruta: Bienestar Financiero",
+        weeks: 6,
+        tags: JSON.stringify(["Ahorro", "Pensión", "RPM/RAIS"]),
+        courseIds: JSON.stringify(
+          [
+            "Finanzas Personales y Planificación de Retiro",
+            "Planificación Financiera para el Retiro",
+            "Ahorro y Presupuesto Personal",
           ].map((t) => byTitle.get(t))
         ),
       },

@@ -6,6 +6,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { Evaluacion } from "./pages/Evaluacion";
 import { Transicion } from "./pages/Transicion";
 import { Actualizacion } from "./pages/Actualizacion";
+import { Pension } from "./pages/Pension";
 import { Cursos } from "./pages/Cursos";
 import { Mentor } from "./pages/Mentor";
 import { Admin } from "./pages/Admin";
@@ -46,6 +47,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Actualizacion />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/pension"
+        element={
+          <ProtectedRoute>
+            <Pension />
           </ProtectedRoute>
         }
       />
