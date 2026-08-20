@@ -40,7 +40,7 @@ export function Login() {
     <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
       <div className="hidden flex-col justify-between bg-brand-900 px-12 py-12 text-white lg:flex">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/10 text-lg font-bold">S</div>
+          <Logo size={40} />
           <div>
             <div className="font-semibold tracking-tight">Silver Skills AI</div>
             <div className="text-sm text-brand-200">Tu futuro profesional</div>
@@ -98,9 +98,14 @@ export function Login() {
               />
             </div>
             <div>
-              <label htmlFor="login-password" className="mb-1 block text-sm font-medium text-gray-700">
-                Contraseña
-              </label>
+              <div className="mb-1 flex items-center justify-between">
+                <label htmlFor="login-password" className="block text-sm font-medium text-gray-700">
+                  Contraseña
+                </label>
+                <Link to="/olvide-password" className="text-xs font-medium text-brand-700 hover:underline">
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              </div>
               <input
                 id="login-password"
                 type="password"

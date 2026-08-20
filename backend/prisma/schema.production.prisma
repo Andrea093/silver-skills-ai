@@ -40,6 +40,7 @@ model User {
   chatMessages ChatMessage[]
   cvAnalyses  CvAnalysis[]
   pensionInputs PensionInput[]
+  passwordResetTokens PasswordResetToken[]
 }
 
 model Skill {
@@ -150,6 +151,18 @@ model PensionInput {
   regime              String // "rpm" | "rais" | "unknown"
   scenario            String // "same" | "formalize" | "change_sector" | "voluntary_contributions"
   createdAt           DateTime @default(now())
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique // sha256 of the raw token — only the raw token goes in the email link
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
 
   @@index([userId])
 }

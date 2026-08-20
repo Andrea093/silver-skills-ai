@@ -1,9 +1,12 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { signToken, AUTH_COOKIE_NAME } from "../utils/authTokens";
 import { requireAuth } from "../middleware/requireAuth";
+import { sendPasswordResetEmail } from "../services/emailService";
+import { env } from "../lib/env";
 
 export const authRouter = Router();
 
@@ -95,6 +98,65 @@ authRouter.post("/login", async (req, res) => {
 
 authRouter.post("/logout", (_req, res) => {
   res.clearCookie(AUTH_COOKIE_NAME);
+  res.json({ ok: true });
+});
+
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+function hashToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+const forgotPasswordSchema = z.object({ email: z.string().email() });
+
+authRouter.post("/forgot-password", async (req, res) => {
+  const parsed = forgotPasswordSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Datos inválidos" });
+
+  const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
+  // Same response whether or not the account exists — never confirm/deny that an email is
+  // registered through this endpoint's behavior.
+  if (user) {
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    await prisma.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        tokenHash: hashToken(rawToken),
+        expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
+      },
+    });
+    const resetUrl = `${env.frontendOrigin}/reset-password?token=${rawToken}`;
+    await sendPasswordResetEmail(user.email, resetUrl);
+  }
+
+  res.json({
+    ok: true,
+    message: "Si el correo existe en nuestra plataforma, te enviamos un enlace para restablecer tu contraseña.",
+  });
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(6),
+});
+
+authRouter.post("/reset-password", async (req, res) => {
+  const parsed = resetPasswordSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Datos inválidos" });
+
+  const tokenHash = hashToken(parsed.data.token);
+  const resetToken = await prisma.passwordResetToken.findUnique({ where: { tokenHash } });
+
+  if (!resetToken || resetToken.usedAt || resetToken.expiresAt < new Date()) {
+    return res.status(400).json({ error: "Este enlace ya no es válido o expiró. Solicita uno nuevo." });
+  }
+
+  const passwordHash = await bcrypt.hash(parsed.data.password, 10);
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: resetToken.userId }, data: { passwordHash } }),
+    prisma.passwordResetToken.update({ where: { id: resetToken.id }, data: { usedAt: new Date() } }),
+  ]);
+
   res.json({ ok: true });
 });
 
