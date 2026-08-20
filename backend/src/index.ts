@@ -1,4 +1,10 @@
 import express from "express";
+// Express 4 does not forward a rejected promise from an async route handler to the error
+// middleware below — it crashes the whole process on Node's default unhandledRejection behavior
+// instead, taking down every user's request, not just the one that hit the bug. This patches
+// Router methods to catch and forward those rejections automatically; must be required before any
+// router is created/used.
+import "express-async-errors";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { env } from "./lib/env";
