@@ -1,0 +1,4 @@
+{
+  "_comment": "Manually curated allow-list of employers verified by your team as age-inclusive (e.g. via an official seal/roster you've checked yourselves, like Colombia's Sello Bogotá Incluyente for senior talent once its per-company roster is published, or a program your team has direct knowledge of). Match is a case-insensitive substring against a job's `company` field. Left empty on purpose — we could not find a public, scrapable list of verified 45+/senior-inclusive employers to seed this with confidently, so real names should come from your own team's verification, not an invented list. This is a supplement to the automatic text-based signal in jobAggregator.ts (hasAgeFriendlySignal), which already detects real postings that explicitly mention age-inclusive language.",
+  "employers": []
+}

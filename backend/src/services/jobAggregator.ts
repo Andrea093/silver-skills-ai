@@ -1,5 +1,7 @@
 import https from "https";
 import tls from "tls";
+import fs from "fs";
+import path from "path";
 import { env, isAdzunaEnabled, isJoobleEnabled } from "../lib/env";
 
 function stripHtml(html: string | undefined): string | undefined {
@@ -39,6 +41,42 @@ function matchesModality(text: string, modality: Modality | undefined): boolean 
   if (modality === "hybrid") return /h[ií]brid[oa]|hybrid/.test(t);
   if (modality === "onsite") return /presencial|on[-\s]?site|en\s+oficina/.test(t);
   return true;
+}
+
+// Real phrases a posting's own text uses to signal openness to older/senior candidates — same
+// keyword-scan approach as matchesModality above, applied to the vacancy's real title/description
+// instead of a fabricated employer-certification list (see config/employersAgeFriendly.json for why).
+const AGE_FRIENDLY_SIGNAL = /45\s*\+|50\s*\+|mayores?\s+de\s+(45|50)\s*años|sin\s+l[ií]mite\s+de\s+edad|talento\s+senior|inclusi[oó]n\s+(etaria|generacional)|edad\s+no\s+es\s+(un\s+)?(l[ií]mite|impedimento|barrera)/i;
+
+let ageFriendlyEmployersCache: string[] | null = null;
+
+/**
+ * Supplementary, manually-curated employer allow-list — starts empty (see the config file's own
+ * comment for why) and is meant to be filled in by the team with names they've actually verified,
+ * not invented ones. Loaded lazily and cached; a missing/malformed file degrades to no matches
+ * rather than throwing, since this is a "nice to have" signal, not a required one.
+ */
+function loadAgeFriendlyEmployers(): string[] {
+  if (ageFriendlyEmployersCache) return ageFriendlyEmployersCache;
+  let employers: string[];
+  try {
+    const filePath = path.join(__dirname, "..", "..", "config", "employersAgeFriendly.json");
+    const raw = fs.readFileSync(filePath, "utf8");
+    const parsed = JSON.parse(raw);
+    employers = Array.isArray(parsed.employers) ? parsed.employers.map((e: string) => e.toLowerCase()) : [];
+  } catch {
+    employers = [];
+  }
+  ageFriendlyEmployersCache = employers;
+  return employers;
+}
+
+function hasAgeFriendlySignal(job: { title: string; company: string; description?: string; tags: string[] }): boolean {
+  const haystack = `${job.title} ${job.description || ""} ${job.tags.join(" ")}`;
+  if (AGE_FRIENDLY_SIGNAL.test(haystack)) return true;
+  const employers = loadAgeFriendlyEmployers();
+  const company = job.company.toLowerCase();
+  return employers.some((name) => company.includes(name));
 }
 
 const QUERY_STOPWORDS = new Set([
@@ -85,6 +123,7 @@ export interface NormalizedJob {
   salary?: string;
   postedAt?: string;
   description?: string;
+  ageFriendly?: boolean;
 }
 
 export interface PortalSearchLink {
@@ -433,7 +472,8 @@ export async function searchJobs(query: string, country = "mx", opts: JobSearchO
     searchArbeitnow(query, opts),
     searchSpeColombia(query, country, opts),
   ]);
-  return [...spe, ...adzuna, ...jooble, ...remotive, ...arbeitnow];
+  const jobs = [...spe, ...adzuna, ...jooble, ...remotive, ...arbeitnow];
+  return jobs.map((job) => ({ ...job, ageFriendly: hasAgeFriendlySignal(job) }));
 }
 
 const COUNTRY_NAMES: Record<string, string> = {
