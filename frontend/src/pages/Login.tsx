@@ -4,6 +4,7 @@ import { ShieldCheck, TrendingUp, BookOpen } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { ApiError } from "../lib/api";
 import { Button } from "../components/ui";
+import { Logo } from "../components/Logo";
 
 const HIGHLIGHTS = [
   { icon: TrendingUp, text: "Vacantes reales compatibles con tu experiencia" },
@@ -72,9 +73,7 @@ export function Login() {
       <div className="flex items-center justify-center bg-gray-50 px-6 py-12">
         <div className="w-full max-w-sm">
           <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-800 font-bold text-white">
-              S
-            </div>
+            <Logo size={40} />
             <div>
               <div className="font-semibold">Silver Skills AI</div>
               <div className="text-sm text-gray-500">Tu futuro profesional</div>

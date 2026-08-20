@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { Home, Compass, TrendingUp, RefreshCw, PiggyBank, BookOpen, Sparkles, ShieldCheck, LogOut, Type } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { applyTextScale, getStoredTextScale, nextTextScale, TextScale } from "../lib/textScale";
+import { Logo } from "./Logo";
 
 const NAV_ITEMS = [
   { to: "/dashboard", label: "Inicio", icon: Home },
@@ -69,9 +70,7 @@ export function NavBar() {
     <header className="border-b border-gray-200 bg-white">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-800 text-lg font-bold text-white">
-            S
-          </div>
+          <Logo size={40} />
           <div>
             <div className="font-semibold leading-tight tracking-tight">Silver Skills AI</div>
             <div className="text-sm text-gray-500">Tu futuro profesional</div>

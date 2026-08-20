@@ -2,6 +2,7 @@ import { Link, Navigate } from "react-router-dom";
 import { Compass, Briefcase, BookOpen, RefreshCw, ShieldCheck, ArrowRight } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { Card, Button, IconBadge } from "../components/ui";
+import { Logo } from "../components/Logo";
 
 const PILLARS = [
   {
@@ -57,9 +58,7 @@ export function Landing() {
       <header className="border-b border-gray-200 bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-800 text-lg font-bold text-white">
-              S
-            </div>
+            <Logo size={40} />
             <div>
               <div className="font-semibold leading-tight tracking-tight">Silver Skills AI</div>
               <div className="text-sm text-gray-500">Tu futuro profesional</div>
@@ -179,9 +178,7 @@ export function Landing() {
       <footer className="border-t border-gray-200 bg-white py-8">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-800 text-sm font-bold text-white">
-              S
-            </div>
+            <Logo size={32} />
             <span className="text-sm font-medium text-gray-700">Silver Skills AI</span>
           </div>
           <p className="text-xs text-gray-500">© {new Date().getFullYear()} Silver Skills AI</p>
