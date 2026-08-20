@@ -212,15 +212,15 @@ export function Pension() {
                 </option>
               ))}
             </select>
-            {regime === "unknown" && (
-              <p className="mt-2 rounded-lg bg-gray-50 p-3 text-xs text-gray-600">
-                El <strong>RPM</strong> (Colpensiones) es un fondo público: tu pensión depende de tus
-                semanas cotizadas y tu salario base. El <strong>RAIS</strong> (Porvenir, Protección,
-                Colfondos u otro fondo privado) es una cuenta de ahorro individual. Para saber en
-                cuál estás, revisa el nombre de la entidad en tu desprendible de pago. Si no lo
-                sabes, no afecta poder ver tu proyección — solo la hace un poco menos precisa.
-              </p>
-            )}
+            <p className="mt-2 rounded-lg bg-gray-50 p-3 text-xs text-gray-600">
+              El <strong>RPM</strong> (Colpensiones) es un fondo público: tu pensión depende de tus
+              semanas cotizadas y tu salario base. El <strong>RAIS</strong> (Porvenir, Protección,
+              Colfondos u otro fondo privado) es una cuenta de ahorro individual. Para saber en cuál
+              estás, revisa el nombre de la entidad en tu desprendible de pago o certificado
+              laboral.
+              {regime === "unknown" &&
+                " Si no lo sabes todavía, no afecta poder ver tu proyección — solo la hace un poco menos precisa."}
+            </p>
           </div>
 
           <div>

@@ -78,14 +78,31 @@ export async function searchCoursesByTopic(topic: string) {
   }));
 }
 
-export async function listLearningPaths() {
+export async function listLearningPaths(recommendedSkillNames: string[] = []) {
   const paths = await prisma.learningPath.findMany();
   const courses = await prisma.course.findMany();
   const courseById = new Map(courses.map((c) => [c.id, { ...c, tags: JSON.parse(c.tags) }]));
-  return paths.map((p) => ({
-    ...p,
-    tags: JSON.parse(p.tags),
-    courseIds: JSON.parse(p.courseIds),
-    courses: (JSON.parse(p.courseIds) as string[]).map((id) => courseById.get(id)).filter(Boolean),
-  }));
+
+  const recommended = recommendedSkillNames.map((s) => s.toLowerCase());
+
+  const withMatchCount = paths.map((p) => {
+    const tags: string[] = JSON.parse(p.tags);
+    const pathCourses = (JSON.parse(p.courseIds) as string[]).map((id) => courseById.get(id)).filter(Boolean) as (ReturnType<typeof courseById.get> & {})[];
+    // Count of the person's own weak/missing skills this path actually covers (via its tags or its
+    // courses' tags/category) — not just whether it covers at least one. Marking every partial
+    // overlap as "recommended" (the same broad match listCourses above uses for individual courses)
+    // ends up highlighting almost every path, which stops meaning anything — one clear standout
+    // orients the person better than everything being equally "recommended".
+    const matchCount = recommended.filter(
+      (skill) =>
+        tags.some((t) => t.toLowerCase().includes(skill)) ||
+        pathCourses.some((c: any) => c.tags.some((t: string) => t.toLowerCase().includes(skill)) || c.category.toLowerCase().includes(skill))
+    ).length;
+    return { ...p, tags, courseIds: JSON.parse(p.courseIds), courses: pathCourses, matchCount };
+  });
+
+  const bestCount = Math.max(0, ...withMatchCount.map((p) => p.matchCount));
+  return withMatchCount
+    .map(({ matchCount, ...p }) => ({ ...p, recommended: bestCount > 0 && matchCount === bestCount }))
+    .sort((a, b) => Number(b.recommended) - Number(a.recommended));
 }

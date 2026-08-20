@@ -4,6 +4,7 @@ import { RefreshCw, CheckCircle2, ExternalLink, BookMarked, ClipboardList } from
 import { api } from "../lib/api";
 import { Card, Badge, Button } from "../components/ui";
 import { QuizForm, QuizQuestionDTO } from "../components/QuizForm";
+import { CvDropzone } from "../components/CvDropzone";
 
 interface SkillResource {
   title: string;
@@ -138,12 +139,18 @@ export function Actualizacion() {
 
   function loadData() {
     api.get<SkillsUpdateData>("/skills-update").then(setData);
+    api.get<QuizData>("/skills-quiz").then(setQuiz);
   }
 
   useEffect(() => {
     loadData();
-    api.get<QuizData>("/skills-quiz").then(setQuiz);
   }, []);
+
+  // Uploading a CV here re-detects profession/specialty right away — the same document, wherever
+  // it's uploaded from, so this doesn't send the person to a different tab to do it again.
+  function handleCvUploaded() {
+    loadData();
+  }
 
   async function handleQuizSubmit(dimension: "general" | "disciplinary", answers: { skill: string; selectedIndex: number }[]) {
     setSubmittingQuiz(true);
@@ -182,11 +189,13 @@ export function Actualizacion() {
 
       {!data.hasProfile && (
         <Card className="border border-accent-200 bg-accent-50">
-          <p className="text-sm text-accent-700">
+          <p className="mb-4 text-sm text-accent-700">
             Para ver qué habilidades actualizar en tu profesión, primero necesitamos conocer tu
             perfil. <Link to="/evaluacion" className="font-semibold underline">Completa la evaluación</Link>{" "}
-            o sube tu CV en <Link to="/transicion" className="font-semibold underline">Transición</Link>.
+            o sube tu CV aquí mismo — es el mismo documento en toda la plataforma, no hace falta
+            subirlo en otra pestaña.
           </p>
+          <CvDropzone onUploaded={handleCvUploaded} title="" description="" />
         </Card>
       )}
 
@@ -202,10 +211,13 @@ export function Actualizacion() {
               {data.specialtyLabel && <Badge tone="accent">{data.specialtyLabel}</Badge>}
             </div>
             {data.professionId === "general" && (
-              <p className="mt-3 text-sm text-gray-500">
-                Sube tu CV en <Link to="/transicion" className="font-medium text-brand-700 hover:underline">Transición</Link>{" "}
-                para una detección de profesión más precisa.
-              </p>
+              <div className="mt-4 border-t border-gray-100 pt-4">
+                <p className="mb-3 text-sm text-gray-500">
+                  Sube tu CV aquí mismo para una detección de profesión más precisa — mismo
+                  documento, sin ir a otra pestaña.
+                </p>
+                <CvDropzone onUploaded={handleCvUploaded} title="" description="" />
+              </div>
             )}
           </Card>
 
@@ -309,11 +321,12 @@ export function Actualizacion() {
               </div>
             ) : (
               <Card className="border border-accent-200 bg-accent-50">
-                <p className="text-sm text-accent-700">
+                <p className="mb-4 text-sm text-accent-700">
                   No pudimos detectar una especialidad específica dentro de tu profesión. Sube un CV
-                  más detallado en <Link to="/transicion" className="font-semibold underline">Transición</Link>{" "}
-                  (mencionando tu área o materia específica) para ver esta dimensión.
+                  más detallado aquí mismo (mencionando tu área o materia específica) para ver esta
+                  dimensión.
                 </p>
+                <CvDropzone onUploaded={handleCvUploaded} title="" description="" />
               </Card>
             )}
           </div>

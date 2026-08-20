@@ -27,7 +27,8 @@ coursesRouter.get("/", requireAuth, async (req, res) => {
   res.json(courses);
 });
 
-coursesRouter.get("/paths", requireAuth, async (_req, res) => {
-  const paths = await listLearningPaths();
+coursesRouter.get("/paths", requireAuth, async (req, res) => {
+  const recommendedSkillNames = await getRecommendedSkillNames(req.userId!);
+  const paths = await listLearningPaths(recommendedSkillNames);
   res.json(paths);
 });

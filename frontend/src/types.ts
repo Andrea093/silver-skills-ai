@@ -64,6 +64,7 @@ export interface LearningPath {
   weeks: number;
   tags: string[];
   courses: Course[];
+  recommended?: boolean;
 }
 
 export interface MentorCard {

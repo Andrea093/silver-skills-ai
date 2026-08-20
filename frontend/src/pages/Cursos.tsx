@@ -57,10 +57,19 @@ export function Cursos() {
                 type="button"
                 onClick={() => setSelectedPathId(isSelected ? null : path.id)}
                 className={`rounded-xl border p-4 text-left transition-colors ${
-                  isSelected ? "border-brand-400 bg-brand-50" : "border-gray-200 hover:border-brand-300"
+                  isSelected
+                    ? "border-brand-400 bg-brand-50"
+                    : path.recommended
+                    ? "border-accent-300 bg-accent-50/30 hover:border-accent-400"
+                    : "border-gray-200 hover:border-brand-300"
                 }`}
               >
                 <IconBadge icon={TrendingUp} size={36} />
+                {path.recommended && (
+                  <div className="mt-2">
+                    <Badge tone="accent" icon={Star}>Recomendada para ti</Badge>
+                  </div>
+                )}
                 <div className="mt-2 font-medium">{path.title}</div>
                 <div className="mt-1 flex items-center gap-3 text-sm text-gray-500">
                   <span className="inline-flex items-center gap-1">

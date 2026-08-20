@@ -105,12 +105,10 @@ export function Mentor() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [agentEnabled, setAgentEnabled] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const prefillHandled = useRef(false);
 
   useEffect(() => {
-    api.get<{ agentEnabled: boolean }>("/mentor/status").then((s) => setAgentEnabled(s.agentEnabled));
     api.get<ChatMessage[]>("/mentor/history").then(setMessages);
   }, []);
 
@@ -165,12 +163,6 @@ export function Mentor() {
       <div className="lg:col-span-2">
         <h1 className="text-2xl font-bold tracking-tight">Mentor Virtual con IA</h1>
         <p className="mb-4 text-gray-500">Tu asistente personal para guiar tu aprendizaje y desarrollo profesional</p>
-        {!agentEnabled && (
-          <p className="mb-4 rounded-lg bg-accent-50 px-3 py-2 text-xs text-accent-700">
-            Modo asistido (sin ANTHROPIC_API_KEY configurada): las respuestas usan reglas simples, pero las
-            vacantes y cursos que muestra son siempre reales.
-          </p>
-        )}
 
         <Card className="flex h-[600px] flex-col">
           <div className="mb-3 flex items-center gap-2 border-b border-gray-100 pb-3">
