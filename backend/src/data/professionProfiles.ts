@@ -2053,6 +2053,161 @@ export const CENTURY21_BEHAVIOR_QUESTIONS: BehaviorQuestion[] = [
   },
 ];
 
+// O*NET's 35 "Skills" are the closest thing to a real, standardized, occupation-agnostic
+// competency taxonomy (onetonline.org/find/descriptor/browse/2.A and /Skills) — used here
+// specifically to replace the "no pudimos detectar una especialidad" dead end for any profession
+// our curated professionProfiles list doesn't (yet) cover, with something genuinely measured
+// instead of nothing. 13 of O*NET's 35: the 11 "Technical Skills" (equipment
+// maintenance/installation/repairing/programming, etc.) are trade/engineering-specific — already
+// covered by ingenieria-tecnologia's own specialties for the people they apply to — and "Complex
+// Problem Solving" duplicates a CENTURY21_BEHAVIOR_QUESTIONS skill already asked above, so both
+// categories are excluded here rather than asked twice or asked of people they don't fit.
+export const ONET_CROSS_FUNCTIONAL_QUESTIONS: BehaviorQuestion[] = [
+  {
+    skill: "Gestión de recursos financieros",
+    question: "¿Qué tan seguido decides o das seguimiento a cómo se gasta un presupuesto (así sea pequeño) en tu trabajo?",
+    options: [
+      "Nunca manejo ni doy seguimiento a presupuestos",
+      "Rara vez",
+      "A veces",
+      "Frecuentemente decido o superviso en qué se gasta",
+      "Siempre tengo control directo sobre un presupuesto y su seguimiento",
+    ],
+  },
+  {
+    skill: "Gestión de recursos materiales",
+    question: "¿Qué tan seguido te aseguras de que los materiales, equipos o insumos necesarios para tu trabajo estén disponibles a tiempo?",
+    options: [
+      "Nunca me encargo de esto, alguien más lo resuelve",
+      "Rara vez",
+      "A veces",
+      "Frecuentemente reviso y consigo lo que hace falta",
+      "Siempre superviso activamente la disponibilidad de lo que se necesita",
+    ],
+  },
+  {
+    skill: "Gestión de personal",
+    question: "¿Qué tan seguido organizas, asignas tareas o das seguimiento al trabajo de otras personas (un equipo, un colega a tu cargo, un practicante)?",
+    options: [
+      "Nunca, no coordino el trabajo de otros",
+      "Rara vez",
+      "A veces",
+      "Frecuentemente asigno tareas o superviso a alguien",
+      "Siempre tengo personas a cargo cuyo trabajo organizo y sigo de cerca",
+    ],
+  },
+  {
+    skill: "Gestión del tiempo",
+    question: "Cuando tienes varias tareas pendientes el mismo día, ¿qué tan seguido logras priorizarlas de forma que las más importantes queden hechas a tiempo?",
+    options: [
+      "Nunca priorizo, hago lo que va llegando sin orden",
+      "Rara vez",
+      "A veces",
+      "Frecuentemente priorizo con un criterio claro",
+      "Siempre organizo mi tiempo de forma que lo importante nunca se queda sin hacer",
+    ],
+  },
+  {
+    skill: "Coordinación",
+    question: "¿Qué tan seguido ajustas lo que haces (horarios, tareas, planes) para que encaje con lo que necesitan otras áreas o personas?",
+    options: [
+      "Nunca ajusto mi trabajo según lo que otros necesitan",
+      "Rara vez",
+      "A veces",
+      "Frecuentemente coordino mi trabajo con el de otros",
+      "Siempre estoy pendiente de que mi trabajo encaje bien con el de los demás",
+    ],
+  },
+  {
+    skill: "Instrucción y capacitación a otros",
+    question: "¿Qué tan seguido le explicas a alguien, paso a paso, cómo hacer algo que tú ya sabes hacer?",
+    options: [
+      "Nunca enseño a otros cómo hacer algo",
+      "Rara vez",
+      "A veces",
+      "Frecuentemente explico o entreno a alguien",
+      "Siempre es parte normal de mi trabajo enseñar a otros",
+    ],
+  },
+  {
+    skill: "Negociación",
+    question: "Cuando dos personas o partes quieren cosas distintas en el trabajo, ¿qué tan seguido participas buscando un punto medio que ambas acepten?",
+    options: [
+      "Nunca participo en este tipo de situaciones",
+      "Rara vez",
+      "A veces",
+      "Frecuentemente busco un acuerdo entre partes",
+      "Siempre soy quien negocia o media para llegar a un acuerdo",
+    ],
+  },
+  {
+    skill: "Persuasión",
+    question: "¿Qué tan seguido logras que alguien cambie de opinión o adopte tu propuesta después de explicarle tus razones?",
+    options: [
+      "Nunca intento convencer a otros de algo",
+      "Rara vez lo logro",
+      "A veces",
+      "Frecuentemente logro que otros se convenzan con mis argumentos",
+      "Siempre soy efectivo/a persuadiendo a otros cuando lo necesito",
+    ],
+  },
+  {
+    skill: "Orientación al servicio",
+    question: "Cuando alguien (un cliente, un compañero, un usuario) tiene un problema que necesitas resolver, ¿qué tan seguido buscas activamente ayudarlo, más allá de lo estrictamente pedido?",
+    options: [
+      "Nunca hago más de lo mínimo pedido",
+      "Rara vez",
+      "A veces",
+      "Frecuentemente busco resolver bien la necesidad de la otra persona",
+      "Siempre priorizo dejar satisfecha a la persona que necesita ayuda",
+    ],
+  },
+  {
+    skill: "Percepción social",
+    question: "¿Qué tan seguido notas cuando alguien en el trabajo está incómodo, confundido o en desacuerdo, aunque no lo diga directamente?",
+    options: [
+      "Nunca lo noto, solo me entero si me lo dicen",
+      "Rara vez",
+      "A veces",
+      "Frecuentemente lo percibo por su actitud o forma de hablar",
+      "Siempre estoy atento/a a cómo se sienten los demás, aunque no lo digan",
+    ],
+  },
+  {
+    skill: "Juicio y toma de decisiones",
+    question: "Cuando tienes que decidir algo importante en el trabajo sin tener toda la información, ¿qué tan seguido igual tomas una decisión con lo que sí tienes, en vez de postergarla?",
+    options: [
+      "Nunca decido sin tener toda la información, prefiero esperar",
+      "Rara vez",
+      "A veces",
+      "Frecuentemente decido con lo que tengo disponible",
+      "Siempre soy capaz de decidir a tiempo aunque falte información",
+    ],
+  },
+  {
+    skill: "Análisis de sistemas",
+    question: "Cuando algo falla en un proceso de tu trabajo, ¿qué tan seguido logras identificar en qué parte del proceso completo está el problema (no solo el síntoma)?",
+    options: [
+      "Nunca identifico bien de dónde viene el problema",
+      "Rara vez",
+      "A veces",
+      "Frecuentemente encuentro la causa dentro del proceso completo",
+      "Siempre logro ver cómo las distintas partes del proceso se afectan entre sí",
+    ],
+  },
+  {
+    skill: "Evaluación de sistemas",
+    question: "¿Qué tan seguido revisas si una forma de trabajar (un proceso, un flujo, un método) está dando realmente los resultados esperados?",
+    options: [
+      "Nunca reviso si algo está funcionando bien, asumo que sí",
+      "Rara vez",
+      "A veces",
+      "Frecuentemente evalúo si un proceso está funcionando como debería",
+      "Siempre reviso resultados y ajusto el proceso si algo no funciona",
+    ],
+  },
+];
+
 // A plain substring check is unsafe for single-word keywords: a short acronym like "TI" needs a
 // word boundary (otherwise it also matches inside unrelated words like "actividad" or "particular"),
 // but a manually-appended trailing space (the old workaround) silently fails whenever that word is

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/requireAuth";
-import { detectProfession, detectSpecialty, GENERAL_PROFILE, ProfessionProfile, Specialty } from "../data/professionProfiles";
+import { detectProfession, detectSpecialty, GENERAL_PROFILE, ProfessionProfile, Specialty, ONET_CROSS_FUNCTIONAL_QUESTIONS } from "../data/professionProfiles";
 import { parseCvSections } from "../services/cvParser";
 import { scoreBarsAnswer } from "../services/assessmentScoring";
 
@@ -43,11 +43,17 @@ skillsQuizRouter.get("/", requireAuth, async (req, res) => {
     knowledgeQuestions: specialty
       ? specialty.knowledgeQuestions.map(({ skill, question, options }) => ({ skill, question, options }))
       : [],
+    // When no specialty is detected (a real, common case — the curated profile list doesn't cover
+    // every real profession), this replaces what used to be a dead end with genuinely universal,
+    // O*NET-grounded questions instead of nothing.
+    universalQuestions: specialty
+      ? []
+      : ONET_CROSS_FUNCTIONAL_QUESTIONS.map(({ skill, question, options }) => ({ skill, question, options })),
   });
 });
 
 const submitSchema = z.object({
-  dimension: z.enum(["general", "disciplinary"]),
+  dimension: z.enum(["general", "disciplinary", "universal"]),
   answers: z.array(z.object({ skill: z.string(), selectedIndex: z.number().int().min(0) })),
 });
 
@@ -63,6 +69,15 @@ skillsQuizRouter.post("/submit", requireAuth, async (req, res) => {
   if (parsed.data.dimension === "general") {
     for (const answer of parsed.data.answers) {
       const question = profile.behaviorQuestions.find((q) => q.skill === answer.skill);
+      if (!question) continue;
+      const level = scoreBarsAnswer(answer.selectedIndex, question.options.length);
+      levelsToSave.push({ skill: answer.skill, level });
+    }
+  } else if (parsed.data.dimension === "universal") {
+    // Same BARS scoring as "general" — the O*NET cross-functional bank is frequency-based too, not
+    // a correct/incorrect knowledge check like the disciplinary one below.
+    for (const answer of parsed.data.answers) {
+      const question = ONET_CROSS_FUNCTIONAL_QUESTIONS.find((q) => q.skill === answer.skill);
       if (!question) continue;
       const level = scoreBarsAnswer(answer.selectedIndex, question.options.length);
       levelsToSave.push({ skill: answer.skill, level });

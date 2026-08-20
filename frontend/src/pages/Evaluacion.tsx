@@ -37,6 +37,7 @@ interface RefreshQuizData {
   behaviorQuestions: QuizQuestionDTO[];
   specialtyLabel: string | null;
   knowledgeQuestions: QuizQuestionDTO[];
+  universalQuestions: QuizQuestionDTO[];
 }
 
 const PIE_COLORS = ["#365e8c", "#d7e0ec"];
@@ -67,6 +68,7 @@ export function Evaluacion() {
   const [refreshQuiz, setRefreshQuiz] = useState<RefreshQuizData | null>(null);
   const [showRefreshGeneral, setShowRefreshGeneral] = useState(false);
   const [showRefreshDisciplinary, setShowRefreshDisciplinary] = useState(false);
+  const [showRefreshUniversal, setShowRefreshUniversal] = useState(false);
   const [refreshSubmitting, setRefreshSubmitting] = useState(false);
   const [refreshDone, setRefreshDone] = useState(false);
 
@@ -94,16 +96,22 @@ export function Evaluacion() {
       .finally(() => setLoadingRefreshQuiz(false));
   }
 
-  async function handleRefreshSubmit(dimension: "general" | "disciplinary", answers: QuizAnswer[]) {
+  async function handleRefreshSubmit(dimension: "general" | "disciplinary" | "universal", answers: QuizAnswer[]) {
     setRefreshSubmitting(true);
     try {
       await api.post("/skills-quiz/submit", { dimension, answers });
       if (dimension === "general") {
         setShowRefreshGeneral(false);
+        // Real specialty-knowledge questions if we have them; otherwise the O*NET universal
+        // fallback instead of stopping short — either way, one continuous flow, no dead end.
         if (refreshQuiz && refreshQuiz.knowledgeQuestions.length > 0) setShowRefreshDisciplinary(true);
+        else if (refreshQuiz && refreshQuiz.universalQuestions.length > 0) setShowRefreshUniversal(true);
         else setRefreshDone(true);
-      } else {
+      } else if (dimension === "disciplinary") {
         setShowRefreshDisciplinary(false);
+        setRefreshDone(true);
+      } else {
+        setShowRefreshUniversal(false);
         setRefreshDone(true);
       }
       await refresh(); // employability badge in the nav can reflect it if it changed
@@ -289,7 +297,7 @@ export function Evaluacion() {
             <p className="text-sm font-medium text-emerald-700">
               ¡Listo! Tu perfil de habilidades quedó actualizado.
             </p>
-          ) : !showRefreshGeneral && !showRefreshDisciplinary ? (
+          ) : !showRefreshGeneral && !showRefreshDisciplinary && !showRefreshUniversal ? (
             <Button variant="outline" onClick={loadRefreshQuiz} disabled={loadingRefreshQuiz}>
               {loadingRefreshQuiz ? "Preparando..." : "Empezar"}
             </Button>
@@ -299,7 +307,7 @@ export function Evaluacion() {
               submitting={refreshSubmitting}
               onSubmit={(answers) => handleRefreshSubmit("general", answers)}
             />
-          ) : refreshQuiz ? (
+          ) : showRefreshDisciplinary && refreshQuiz ? (
             <>
               <p className="mb-3 text-xs text-brand-900">
                 Ahora preguntas de conocimiento real sobre {refreshQuiz.specialtyLabel} — no es
@@ -309,6 +317,19 @@ export function Evaluacion() {
                 questions={refreshQuiz.knowledgeQuestions}
                 submitting={refreshSubmitting}
                 onSubmit={(answers) => handleRefreshSubmit("disciplinary", answers)}
+              />
+            </>
+          ) : refreshQuiz ? (
+            <>
+              <p className="mb-3 text-xs text-brand-900">
+                No detectamos una especialidad específica dentro de tu profesión, así que estas
+                preguntas miden habilidades transversales reales (basadas en la taxonomía O*NET),
+                útiles sin importar tu área exacta.
+              </p>
+              <QuizForm
+                questions={refreshQuiz.universalQuestions}
+                submitting={refreshSubmitting}
+                onSubmit={(answers) => handleRefreshSubmit("universal", answers)}
               />
             </>
           ) : null}
