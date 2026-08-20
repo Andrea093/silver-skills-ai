@@ -44,9 +44,23 @@ export const FINANCIAL_TOPICS: FinancialTopic[] = [
   },
   {
     id: "invertir-basico",
-    title: "No sé nada de inversiones, ¿por dónde empiezo?",
+    title: "¿Qué porcentaje debería invertir, y por dónde empiezo?",
     summary:
-      "Antes de invertir, ten primero un fondo de emergencia (3 a 6 meses de tus gastos básicos) en algo líquido y seguro, como una cuenta de ahorro o un fondo de bajo riesgo — eso te protege de pedir prestado si surge un imprevisto. Después, para empezar en inversión sin ser experto: los CDT (Certificados de Depósito a Término) y los fondos de inversión colectiva de bajo riesgo que ofrecen los bancos son puntos de entrada comunes en Colombia, con montos mínimos accesibles y riesgo bajo. Regla de oro: nunca inviertas en algo que no entiendes, y desconfía de cualquiera que te prometa rentabilidades \"garantizadas\" muy altas — eso casi siempre es una señal de fraude.",
-    mentorPrompt: "No sé nada de inversiones. ¿Por dónde empiezo de forma segura y sencilla, sin ser experto?",
+      "Dentro del 20% que separas para ahorro (ver \"¿Cómo distribuyo mi ingreso?\"), un orden razonable para empezar: primero completa un fondo de emergencia de 3 a 6 meses de tus gastos básicos, guardado en algo líquido y seguro (cuenta de ahorro o fondo de bajo riesgo) — mientras no lo tengas completo, casi todo ese 20% va ahí, no a inversión. Una vez completo, puedes empezar a mover una parte (por ejemplo la mitad de ese 20%, ajustable a tu tranquilidad) hacia inversión de bajo riesgo. Para empezar sin ser experto: los CDT (Certificados de Depósito a Término) y los fondos de inversión colectiva de bajo riesgo que ofrecen los bancos son puntos de entrada comunes en Colombia, con montos mínimos accesibles. Regla de oro: nunca inviertas en algo que no entiendes, y desconfía de cualquiera que te prometa rentabilidades \"garantizadas\" muy altas — eso casi siempre es una señal de fraude.",
+    mentorPrompt: "¿Qué porcentaje de mi ingreso debería destinar a inversión, y por dónde empiezo de forma segura y sencilla, sin ser experto?",
+  },
+  {
+    id: "gastos-variables",
+    title: "Mis gastos varían mucho mes a mes, ¿cómo los controlo?",
+    summary:
+      "Los gastos variables (comida, transporte, salidas, imprevistos pequeños) son los más fáciles de perder de vista porque no llegan como una factura fija. Un método simple: durante un mes, anota (en el celular o en papel) cada gasto variable, aunque sea pequeño — al final del mes vas a ver patrones claros de en qué se te va la plata sin darte cuenta. Con eso, ponle un tope mensual a cada categoría (ej. \"máximo $X en comida fuera de casa\") y revísalo cada semana, no solo a fin de mes — así puedes ajustar a tiempo en vez de descubrir el problema cuando ya no hay nada que hacer.",
+    mentorPrompt: "Mis gastos variables cambian mucho cada mes y se me van de las manos. ¿Cómo los controlo de forma simple?",
+  },
+  {
+    id: "creditos-deudas",
+    title: "Tengo créditos o deudas, ¿qué hago primero?",
+    summary:
+      "Si tienes varias deudas, dos estrategias reales para ordenarlas: pagar primero la de mayor tasa de interés (te ahorra más plata en total, aunque tome más tiempo ver resultados), o pagar primero la más pequeña (te da una victoria rápida que ayuda a mantener la motivación, aunque matemáticamente ahorres un poco menos). Cualquiera de las dos es mejor que no tener un orden. Evita sacar un crédito nuevo para pagar otro sin primero entender por qué se acumuló la deuda — si no, el problema se repite. Y antes de cualquier crédito nuevo (para lo que sea), compara la tasa efectiva anual entre entidades — no solo la cuota mensual, que puede parecer baja pero esconder un plazo mucho más largo y un costo total mucho mayor.",
+    mentorPrompt: "Tengo varias deudas y créditos. ¿Cómo decido cuál pagar primero y cómo evito que se me acumulen más?",
   },
 ];
