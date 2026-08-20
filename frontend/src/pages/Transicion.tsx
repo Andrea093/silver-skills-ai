@@ -439,6 +439,7 @@ export function Transicion() {
                           {job.salary && <> · {job.salary}</>}
                         </div>
                         <div className="mt-2 flex flex-wrap gap-1.5">
+                          {job.ageFriendly && <Badge tone="success">✓ Empleador inclusivo 45+</Badge>}
                           {job.tags.slice(0, 5).map((t) => (
                             <Badge key={t} tone="neutral">
                               {t}

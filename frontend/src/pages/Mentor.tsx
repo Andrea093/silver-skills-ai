@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Sparkles, TrendingUp, Target, BookOpen, Lightbulb, Send, ExternalLink } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { api } from "../lib/api";
-import { Card, IconBadge } from "../components/ui";
+import { Card, IconBadge, Badge } from "../components/ui";
 import { ChatMessage, MentorCard } from "../types";
 import { useAuth } from "../context/AuthContext";
 
@@ -42,6 +42,9 @@ function JobCards({ data }: { data: any }) {
           <div className="text-gray-500">
             {job.company} · {job.location}
           </div>
+          {job.ageFriendly && (
+            <Badge tone="success">✓ Empleador inclusivo 45+</Badge>
+          )}
         </a>
       ))}
       {(data.portalLinks || []).length > 0 && (

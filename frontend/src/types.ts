@@ -33,6 +33,7 @@ export interface NormalizedJob {
   salary?: string;
   postedAt?: string;
   description?: string;
+  ageFriendly?: boolean;
 }
 
 export interface PortalSearchLink {
