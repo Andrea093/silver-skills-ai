@@ -150,8 +150,14 @@ export function Actualizacion() {
     try {
       await api.post("/skills-quiz/submit", { dimension, answers });
       loadData();
-      if (dimension === "general") setShowGeneralQuiz(false);
-      else setShowDisciplinaryQuiz(false);
+      if (dimension === "general") {
+        setShowGeneralQuiz(false);
+        // One continuous update instead of two separate quizzes to notice and click into
+        // independently — if there's a second dimension, keep going right away.
+        if (quiz && quiz.knowledgeQuestions.length > 0) setShowDisciplinaryQuiz(true);
+      } else {
+        setShowDisciplinaryQuiz(false);
+      }
     } finally {
       setSubmittingQuiz(false);
     }
@@ -167,6 +173,11 @@ export function Actualizacion() {
           Para quienes ya tienen empleo: descubre qué debes actualizar en cómo haces tu trabajo y en
           lo que sabes de tu especialidad, para seguir siendo competitivo.
         </p>
+        {data?.hasProfile && (
+          <p className="mt-1 text-sm text-gray-500">
+            Esto actualiza el mismo perfil que llenaste en <Link to="/evaluacion" className="font-medium text-brand-700 hover:underline">Evaluación</Link> — no es un cuestionario nuevo desde cero, solo confirmamos qué cambió.
+          </p>
+        )}
       </div>
 
       {!data.hasProfile && (
@@ -228,11 +239,14 @@ export function Actualizacion() {
                   </div>
                   <p className="mb-3 text-sm text-brand-900">
                     Un párrafo de texto no puede medir con precisión tus habilidades. Responde estas
-                    preguntas puntuales para reemplazar la estimación por evidencia real.
+                    preguntas puntuales para reemplazar la estimación por evidencia real
+                    {quiz && quiz.knowledgeQuestions.length > 0
+                      ? " — sigue directo con las de tu especialidad al terminar, en un solo paso."
+                      : "."}
                   </p>
                   {!showGeneralQuiz ? (
                     <Button variant="outline" onClick={() => setShowGeneralQuiz(true)}>
-                      Tomar cuestionario
+                      Actualizar mi perfil
                     </Button>
                   ) : (
                     <QuizForm

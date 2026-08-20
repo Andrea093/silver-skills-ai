@@ -9,10 +9,10 @@ export interface FinancialTopic {
 export const FINANCIAL_TOPICS: FinancialTopic[] = [
   {
     id: "rpm-vs-rais",
-    title: "¿Qué diferencia hay entre RPM y RAIS?",
+    title: "¿Qué diferencia hay entre RPM y RAIS, y cuál es el mío?",
     summary:
-      "El RPM (Régimen de Prima Media) es un fondo público común: tu pensión depende de tus semanas cotizadas y tu salario base, con un tope fijo. El RAIS (Régimen de Ahorro Individual) es una cuenta personal: tu pensión depende de cuánto ahorraste y cómo rindió esa plata. No hay uno \"mejor\" para todos — depende de tu historia laboral y cuánto te falta para pensionarte.",
-    mentorPrompt: "Explícame en palabras simples la diferencia entre RPM y RAIS, y cuál me conviene más según mi situación.",
+      "El RPM (Régimen de Prima Media, administrado por Colpensiones) es un fondo público común: tu pensión depende de tus semanas cotizadas y tu salario base, con un tope fijo. El RAIS (Régimen de Ahorro Individual, administrado por fondos privados como Porvenir, Protección o Colfondos) es una cuenta personal: tu pensión depende de cuánto ahorraste y cómo rindió esa plata.\n\n¿Cómo sé en cuál estoy? Revisa el nombre de la entidad en tu desprendible de pago o certificado laboral — si dice \"Colpensiones\" estás en RPM; si dice Porvenir, Protección, Colfondos u otro fondo privado, estás en RAIS. Si no lo tienes a la mano, puedes consultarlo gratis en la página de Colpensiones o llamando a tu fondo.\n\n¿Cómo decido si me conviene cambiar? Como regla general: si te faltan pocos años y ya tienes muchas semanas cotizadas, cambiar rara vez conviene. Si te faltan muchos años, vale la pena comparar con un asesor de tu fondo actual — es una decisión importante que no deberías tomar solo con esta guía.",
+    mentorPrompt: "Explícame en palabras simples la diferencia entre RPM y RAIS, cómo puedo saber en cuál estoy, y qué debería considerar si estoy pensando en cambiar.",
   },
   {
     id: "ahorro-voluntario",

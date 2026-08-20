@@ -214,10 +214,11 @@ export function Pension() {
             </select>
             {regime === "unknown" && (
               <p className="mt-2 rounded-lg bg-gray-50 p-3 text-xs text-gray-600">
-                El <strong>RPM</strong> es un fondo público común: tu pensión depende de tus semanas
-                cotizadas y tu salario base. El <strong>RAIS</strong> es una cuenta de ahorro
-                individual: tu pensión depende de cuánto ahorraste y cómo rindió. Si no lo sabes, no
-                afecta poder ver tu proyección — solo la hace un poco menos precisa.
+                El <strong>RPM</strong> (Colpensiones) es un fondo público: tu pensión depende de tus
+                semanas cotizadas y tu salario base. El <strong>RAIS</strong> (Porvenir, Protección,
+                Colfondos u otro fondo privado) es una cuenta de ahorro individual. Para saber en
+                cuál estás, revisa el nombre de la entidad en tu desprendible de pago. Si no lo
+                sabes, no afecta poder ver tu proyección — solo la hace un poco menos precisa.
               </p>
             )}
           </div>
@@ -326,7 +327,7 @@ export function Pension() {
                 </button>
                 {isOpen && (
                   <div className="space-y-3 border-t border-gray-100 p-4 pt-3">
-                    <p className="text-sm text-gray-600">{topic.summary}</p>
+                    <p className="whitespace-pre-line text-sm text-gray-600">{topic.summary}</p>
                     <Button
                       variant="outline"
                       size="md"
