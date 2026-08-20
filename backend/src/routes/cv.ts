@@ -5,8 +5,34 @@ import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/requireAuth";
 import { analyzeCv } from "../services/cvAnalyzer";
 import { generateTailoredCv } from "../services/cvGenerator";
+import { detectProfession } from "../data/professionProfiles";
+import { parseCvSections } from "../services/cvParser";
 
 export const cvRouter = Router();
+
+// The CV lives in one place (uploaded once, from Evaluación) and gets reused everywhere it's
+// needed (Transición's CV-optimize button, Actualización's gap analysis) instead of asking the
+// person to upload it again per screen — this is what other pages call to check "do they already
+// have one" and get it back in the same shape /analyze returns.
+cvRouter.get("/latest", requireAuth, async (req, res) => {
+  const latest = await prisma.cvAnalysis.findFirst({
+    where: { userId: req.userId! },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!latest) return res.status(404).json({ error: "Aún no has subido un CV" });
+
+  const parsed = parseCvSections(latest.rawText);
+  const profession = detectProfession(latest.rawText, parsed.headline);
+
+  res.json({
+    id: latest.id,
+    filename: latest.filename,
+    extractedSkills: JSON.parse(latest.extractedSkills),
+    atsScore: latest.atsScore,
+    suggestions: JSON.parse(latest.suggestions),
+    professionLabel: profession.label,
+  });
+});
 
 const upload = multer({
   storage: multer.memoryStorage(),

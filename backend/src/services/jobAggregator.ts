@@ -16,9 +16,16 @@ function stripHtml(html: string | undefined): string | undefined {
 
 export type Modality = "remote" | "hybrid" | "onsite" | "any";
 
+// A generic keyword-matched query ("consultor digital") returns postings across every seniority
+// level, so a 45+ candidate with 20 years of experience ends up scrolling past — and effectively
+// competing for — entry-level and junior postings meant for someone starting out. This lets them
+// filter down to the level their experience actually targets.
+export type SeniorityLevel = "any" | "senior" | "director" | "consultant";
+
 export interface JobSearchOptions {
   location?: string; // free-text city, e.g. "Bogotá"
   modality?: Modality;
+  seniority?: SeniorityLevel;
 }
 
 // A vacancy posted months ago is very likely already filled or stale — showing it as a "real
@@ -41,6 +48,22 @@ function matchesModality(text: string, modality: Modality | undefined): boolean 
   if (modality === "hybrid") return /h[ií]brid[oa]|hybrid/.test(t);
   if (modality === "onsite") return /presencial|on[-\s]?site|en\s+oficina/.test(t);
   return true;
+}
+
+// Checked against the title only (not the full description) — a description can mention "junior"
+// in passing (e.g. "colaborarás con un analista junior") without the posting itself being an
+// entry-level role, but a title rarely does.
+const ENTRY_LEVEL_TITLE = /\bjunior\b|\bjr\.?\b|trainee|practicante|pr[aá]ctica|becari[oa]|aprendiz|sin\s+experiencia|reci[eé]n\s+egresad[oa]/i;
+const SENIORITY_TITLE_SIGNAL: Record<Exclude<SeniorityLevel, "any">, RegExp> = {
+  senior: /\bsenior\b|\bs[eé]nior\b|\bsr\.?\b|especialista|experimentad[oa]/i,
+  director: /director|gerente|gerencial|jefe\s+de|head\s+of|manager|l[ií]der\s+de/i,
+  consultant: /consultor|consultor[ií]a|asesor(?![ií]a\s+comercial)/i,
+};
+
+function matchesSeniority(title: string, seniority: SeniorityLevel | undefined): boolean {
+  if (!seniority || seniority === "any") return true;
+  if (ENTRY_LEVEL_TITLE.test(title)) return false;
+  return SENIORITY_TITLE_SIGNAL[seniority].test(title);
 }
 
 // Real phrases a posting's own text uses to signal openness to older/senior candidates — same
@@ -472,7 +495,9 @@ export async function searchJobs(query: string, country = "mx", opts: JobSearchO
     searchArbeitnow(query, opts),
     searchSpeColombia(query, country, opts),
   ]);
-  const jobs = [...spe, ...adzuna, ...jooble, ...remotive, ...arbeitnow];
+  const jobs = [...spe, ...adzuna, ...jooble, ...remotive, ...arbeitnow].filter((job) =>
+    matchesSeniority(job.title, opts.seniority)
+  );
   return jobs.map((job) => ({ ...job, ageFriendly: hasAgeFriendlySignal(job) }));
 }
 
@@ -502,6 +527,19 @@ const LINKEDIN_WORK_TYPE: Record<Exclude<Modality, "any">, string> = {
   hybrid: "3",
 };
 
+// LinkedIn's real, documented seniority filter param (f_E): 4=Mid-Senior level, 5=Director.
+// "consultant" isn't a seniority level LinkedIn models this way, so it only augments the keywords.
+const LINKEDIN_SENIORITY: Partial<Record<Exclude<SeniorityLevel, "any">, string>> = {
+  senior: "4",
+  director: "5",
+};
+
+const SENIORITY_QUERY_WORD: Record<Exclude<SeniorityLevel, "any">, string> = {
+  senior: " senior",
+  director: " director",
+  consultant: " consultor",
+};
+
 /**
  * LinkedIn/Indeed/Computrabajo/OCC don't offer free public search APIs, so instead of
  * fabricating listings we build real, working search-result deep links on each portal, now
@@ -511,7 +549,8 @@ export function buildPortalSearchLinks(
   query: string,
   country = "mx",
   location?: string,
-  modality?: Modality
+  modality?: Modality,
+  seniority?: SeniorityLevel
 ): PortalSearchLink[] {
   const q = encodeURIComponent(query);
   const countryName = COUNTRY_NAMES[country] || "México";
@@ -521,9 +560,13 @@ export function buildPortalSearchLinks(
 
   let linkedinUrl = `https://www.linkedin.com/jobs/search/?keywords=${q}&location=${placeParam}`;
   if (modality && modality !== "any") linkedinUrl += `&f_WT=${LINKEDIN_WORK_TYPE[modality]}`;
+  if (seniority && seniority !== "any" && LINKEDIN_SENIORITY[seniority]) {
+    linkedinUrl += `&f_E=${LINKEDIN_SENIORITY[seniority]}`;
+  }
 
   const modalityWord = modality === "remote" ? " remoto" : modality === "hybrid" ? " híbrido" : modality === "onsite" ? " presencial" : "";
-  const indeedQuery = encodeURIComponent(`${query}${modalityWord}`);
+  const seniorityWord = seniority && seniority !== "any" ? SENIORITY_QUERY_WORD[seniority] : "";
+  const indeedQuery = encodeURIComponent(`${query}${modalityWord}${seniorityWord}`);
 
   const links: PortalSearchLink[] = [
     { portal: "LinkedIn", url: linkedinUrl },

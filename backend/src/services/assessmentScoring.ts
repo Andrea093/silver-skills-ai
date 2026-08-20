@@ -104,20 +104,26 @@ export function computeAssessment(answers: AssessmentAnswers) {
   let adaptationPotential = 40 + Math.round(digitalAvg * 0.3) + Math.round(softAvg * 0.2) + Math.round(answers.weeklyHours * 2);
   adaptationPotential = Math.max(5, Math.min(98, adaptationPotential));
 
-  const recommendedSkills = DEMAND_DATASET.filter((d) => {
-    const owned = resultSkills.find((s) => s.name === d.name);
-    return !owned || owned.level < 70;
-  });
-
   const employabilityScore = Math.round((100 - automationRisk) * 0.4 + adaptationPotential * 0.4 + digitalAvg * 0.2);
 
   return {
     resultSkills,
     automationRisk,
     adaptationPotential,
-    recommendedSkills: recommendedSkills.length > 0 ? recommendedSkills : DEMAND_DATASET,
+    recommendedSkills: computeRecommendedSkills(resultSkills),
     employabilityScore: Math.max(1, Math.min(100, employabilityScore)),
   };
+}
+
+// Deterministic from resultSkills alone, so a stored Assessment row (which only persists
+// resultSkills, not this derived list) can recompute the same recommendations later — e.g. for a
+// returning user's GET /latest — without having to also store it redundantly.
+export function computeRecommendedSkills(resultSkills: SkillResult[]): RecommendedSkill[] {
+  const recommendedSkills = DEMAND_DATASET.filter((d) => {
+    const owned = resultSkills.find((s) => s.name === d.name);
+    return !owned || owned.level < 70;
+  });
+  return recommendedSkills.length > 0 ? recommendedSkills : DEMAND_DATASET;
 }
 
 export function heuristicSummary(answers: AssessmentAnswers, computed: ReturnType<typeof computeAssessment>) {

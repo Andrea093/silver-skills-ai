@@ -81,6 +81,7 @@ export interface ChatMessage {
 }
 
 export type Modality = "remote" | "hybrid" | "onsite" | "any";
+export type SeniorityLevel = "any" | "senior" | "director" | "consultant";
 
 export type PensionRegime = "rpm" | "rais" | "unknown";
 export type PensionScenario = "same" | "formalize" | "change_sector" | "voluntary_contributions";

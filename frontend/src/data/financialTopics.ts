@@ -35,4 +35,18 @@ export const FINANCIAL_TOPICS: FinancialTopic[] = [
       "Tienes varias opciones reales: seguir cotizando el tiempo que haga falta (incluso de forma independiente), hacer un traslado de régimen si aplica en tu caso, o consultar una indemnización sustitutiva o devolución de saldos si no vas a alcanzar las semanas mínimas. Cada caso es distinto — un asesor de tu fondo de pensiones te puede confirmar cuál aplica al tuyo.",
     mentorPrompt: "Estoy cerca de la edad de pensión y me faltan semanas cotizadas. ¿Qué opciones reales tengo?",
   },
+  {
+    id: "distribuir-ingreso",
+    title: "¿Cómo distribuyo mi ingreso mensual de forma sencilla?",
+    summary:
+      "Una regla simple y conocida para empezar (ajústala a tu realidad, no es una fórmula rígida): 50% para lo esencial (vivienda, comida, servicios, deudas mínimas), 30% para lo que quieras (ocio, gustos, familia) y 20% para ahorro y aportes voluntarios a tu pensión. Si hoy no te alcanza para ese 20%, no pasa nada — empieza con lo que puedas, aunque sea 5%, y ve subiendo el porcentaje según mejore tu ingreso. Lo que importa es tener la costumbre de separar algo antes de gastar el resto, no la cifra exacta.",
+    mentorPrompt: "Ayúdame a distribuir mi ingreso mensual de forma simple, considerando mis gastos esenciales y mi meta de ahorro.",
+  },
+  {
+    id: "invertir-basico",
+    title: "No sé nada de inversiones, ¿por dónde empiezo?",
+    summary:
+      "Antes de invertir, ten primero un fondo de emergencia (3 a 6 meses de tus gastos básicos) en algo líquido y seguro, como una cuenta de ahorro o un fondo de bajo riesgo — eso te protege de pedir prestado si surge un imprevisto. Después, para empezar en inversión sin ser experto: los CDT (Certificados de Depósito a Término) y los fondos de inversión colectiva de bajo riesgo que ofrecen los bancos son puntos de entrada comunes en Colombia, con montos mínimos accesibles y riesgo bajo. Regla de oro: nunca inviertas en algo que no entiendes, y desconfía de cualquiera que te prometa rentabilidades \"garantizadas\" muy altas — eso casi siempre es una señal de fraude.",
+    mentorPrompt: "No sé nada de inversiones. ¿Por dónde empiezo de forma segura y sencilla, sin ser experto?",
+  },
 ];

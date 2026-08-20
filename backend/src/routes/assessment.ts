@@ -3,7 +3,7 @@ import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/requireAuth";
-import { computeAssessment, heuristicSummary, scoreBarsAnswer, WIZARD_STEPS, AssessmentAnswers } from "../services/assessmentScoring";
+import { computeAssessment, computeRecommendedSkills, heuristicSummary, scoreBarsAnswer, WIZARD_STEPS, AssessmentAnswers } from "../services/assessmentScoring";
 import { detectProfession, CENTURY21_BEHAVIOR_QUESTIONS, BehaviorQuestion } from "../data/professionProfiles";
 import { env, isMentorAgentEnabled } from "../lib/env";
 
@@ -128,11 +128,16 @@ assessmentRouter.get("/latest", requireAuth, async (req, res) => {
     orderBy: { createdAt: "desc" },
   });
   if (!latest) return res.status(404).json({ error: "Sin evaluaciones aún" });
+
+  const user = await prisma.user.findUnique({ where: { id: req.userId! } });
+  const resultSkills = JSON.parse(latest.resultSkills);
   res.json({
-    resultSkills: JSON.parse(latest.resultSkills),
+    resultSkills,
     automationRisk: latest.automationRisk,
     adaptationPotential: latest.adaptationPotential,
     summary: latest.summary,
     createdAt: latest.createdAt,
+    employabilityScore: user?.employabilityScore ?? 50,
+    recommendedSkills: computeRecommendedSkills(resultSkills),
   });
 });

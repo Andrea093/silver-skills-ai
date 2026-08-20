@@ -2,7 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/requireAuth";
 import { SECTOR_GROWTH } from "../data/sectorGrowth";
-import { searchJobs, buildPortalSearchLinks, Modality } from "../services/jobAggregator";
+import { searchJobs, buildPortalSearchLinks, Modality, SeniorityLevel } from "../services/jobAggregator";
 import { parseCvSections } from "../services/cvParser";
 import { detectProfession, detectSpecialty } from "../data/professionProfiles";
 import { classifyGoalIntent, extractGoalTarget } from "../data/goalIntent";
@@ -27,6 +27,7 @@ transitionRouter.get("/", requireAuth, async (req, res) => {
   const country = (req.query.country as string) || "mx";
   const location = (req.query.location as string) || undefined;
   const modality = (req.query.modality as Modality) || "any";
+  const seniority = (req.query.level as SeniorityLevel) || "any";
 
   const goal: string = latest ? (JSON.parse(latest.answers).goal as string) || "" : "";
   const wantsChange = classifyGoalIntent(goal) === "change";
@@ -49,8 +50,8 @@ transitionRouter.get("/", requireAuth, async (req, res) => {
     jobQuery = parsedCv.headline || (profession.id !== "general" ? professionWithSpecialty : topSkill) || topSkill;
   }
 
-  const jobs = hasProfile ? await searchJobs(jobQuery!, country, { location, modality }) : [];
-  const portalLinks = hasProfile ? buildPortalSearchLinks(jobQuery!, country, location, modality) : [];
+  const jobs = hasProfile ? await searchJobs(jobQuery!, country, { location, modality, seniority }) : [];
+  const portalLinks = hasProfile ? buildPortalSearchLinks(jobQuery!, country, location, modality, seniority) : [];
 
   res.json({
     hasProfile,

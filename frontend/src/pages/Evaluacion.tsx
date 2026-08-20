@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { ArrowLeft, ArrowRight, Sparkles, TrendingUp, FileText, RefreshCw, AlertCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Sparkles, TrendingUp, FileText, RefreshCw, AlertCircle, ClipboardList } from "lucide-react";
 import { api } from "../lib/api";
 import { Card, ProgressBar, Badge, Button } from "../components/ui";
 import { CvDropzone } from "../components/CvDropzone";
@@ -32,6 +32,13 @@ interface AssessmentResult {
   summary: string;
 }
 
+interface RefreshQuizData {
+  professionLabel: string;
+  behaviorQuestions: QuizQuestionDTO[];
+  specialtyLabel: string | null;
+  knowledgeQuestions: QuizQuestionDTO[];
+}
+
 const PIE_COLORS = ["#365e8c", "#d7e0ec"];
 
 export function Evaluacion() {
@@ -52,15 +59,73 @@ export function Evaluacion() {
   const [weeklyHours, setWeeklyHours] = useState(5);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<AssessmentResult | null>(null);
+  const [checkingExisting, setCheckingExisting] = useState(true);
+
+  // "Actualizar mis habilidades" — the periodic re-measurement that used to live in Actualización,
+  // relocated here so this is the single place that both captures and refreshes skill data (same
+  // /skills-quiz endpoints, unchanged; only where the UI surfaces them moved).
+  const [refreshQuiz, setRefreshQuiz] = useState<RefreshQuizData | null>(null);
+  const [showRefreshGeneral, setShowRefreshGeneral] = useState(false);
+  const [showRefreshDisciplinary, setShowRefreshDisciplinary] = useState(false);
+  const [refreshSubmitting, setRefreshSubmitting] = useState(false);
+  const [refreshDone, setRefreshDone] = useState(false);
 
   useEffect(() => {
     api.get<{ steps: WizardStep[] }>("/assessment/steps").then((data) => setSteps(data.steps));
+    api
+      .get<AssessmentResult>("/assessment/latest")
+      .then(setResult)
+      .catch(() => {
+        // 404 just means this person hasn't completed an evaluation yet — show the wizard instead
+      })
+      .finally(() => setCheckingExisting(false));
   }, []);
 
-  if (steps.length === 0) return <p className="text-gray-500">Cargando...</p>;
+  const [loadingRefreshQuiz, setLoadingRefreshQuiz] = useState(false);
 
-  const step = steps[stepIndex];
-  const progressPct = Math.round(((stepIndex + 1) / steps.length) * 100);
+  function loadRefreshQuiz() {
+    setLoadingRefreshQuiz(true);
+    api
+      .get<RefreshQuizData>("/skills-quiz")
+      .then((data) => {
+        setRefreshQuiz(data);
+        setShowRefreshGeneral(true); // one click starts the quiz — no second "Empezar" needed
+      })
+      .finally(() => setLoadingRefreshQuiz(false));
+  }
+
+  async function handleRefreshSubmit(dimension: "general" | "disciplinary", answers: QuizAnswer[]) {
+    setRefreshSubmitting(true);
+    try {
+      await api.post("/skills-quiz/submit", { dimension, answers });
+      if (dimension === "general") {
+        setShowRefreshGeneral(false);
+        if (refreshQuiz && refreshQuiz.knowledgeQuestions.length > 0) setShowRefreshDisciplinary(true);
+        else setRefreshDone(true);
+      } else {
+        setShowRefreshDisciplinary(false);
+        setRefreshDone(true);
+      }
+      await refresh(); // employability badge in the nav can reflect it if it changed
+    } finally {
+      setRefreshSubmitting(false);
+    }
+  }
+
+  function startFullRetake() {
+    setResult(null);
+    setRefreshDone(false);
+    setStepIndex(0);
+    setExperienceText("");
+    setCvResult(null);
+    setQuizQuestions([]);
+    setQuizAnswers([]);
+    setInterests([]);
+    setGoal("");
+    setWeeklyHours(5);
+  }
+
+  if (checkingExisting || steps.length === 0) return <p className="text-gray-500">Cargando...</p>;
 
   async function fetchQuizQuestions() {
     setLoadingQuiz(true);
@@ -126,9 +191,18 @@ export function Evaluacion() {
     ];
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Resultados de tu Evaluación</h1>
-          <p className="text-gray-500">{result.summary}</p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Resultados de tu Evaluación</h1>
+            <p className="text-gray-500">{result.summary}</p>
+          </div>
+          <button
+            type="button"
+            onClick={startFullRetake}
+            className="whitespace-nowrap text-sm font-semibold text-brand-700 hover:underline"
+          >
+            Volver a hacer la evaluación completa
+          </button>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
@@ -200,6 +274,46 @@ export function Evaluacion() {
           </div>
         </Card>
 
+        <Card className="border border-brand-100 bg-brand-50/60">
+          <div className="mb-1 flex items-center gap-2 text-brand-900">
+            <ClipboardList size={17} strokeWidth={2.25} />
+            <h2 className="font-semibold">Actualizar mis habilidades</h2>
+          </div>
+          <p className="mb-3 text-sm text-brand-900">
+            Con el tiempo tus habilidades cambian — responde estas preguntas puntuales (cómo haces tu
+            trabajo, y si tienes una especialidad detectada, qué tan al día estás en ella) para
+            refrescar tu perfil sin rehacer toda la evaluación. Esto es lo mismo que verás reflejado
+            en <Link to="/actualizacion" className="font-semibold underline">Actualización</Link>.
+          </p>
+          {refreshDone ? (
+            <p className="text-sm font-medium text-emerald-700">
+              ¡Listo! Tu perfil de habilidades quedó actualizado.
+            </p>
+          ) : !showRefreshGeneral && !showRefreshDisciplinary ? (
+            <Button variant="outline" onClick={loadRefreshQuiz} disabled={loadingRefreshQuiz}>
+              {loadingRefreshQuiz ? "Preparando..." : "Empezar"}
+            </Button>
+          ) : showRefreshGeneral && refreshQuiz ? (
+            <QuizForm
+              questions={refreshQuiz.behaviorQuestions}
+              submitting={refreshSubmitting}
+              onSubmit={(answers) => handleRefreshSubmit("general", answers)}
+            />
+          ) : refreshQuiz ? (
+            <>
+              <p className="mb-3 text-xs text-brand-900">
+                Ahora preguntas de conocimiento real sobre {refreshQuiz.specialtyLabel} — no es
+                autoevaluación.
+              </p>
+              <QuizForm
+                questions={refreshQuiz.knowledgeQuestions}
+                submitting={refreshSubmitting}
+                onSubmit={(answers) => handleRefreshSubmit("disciplinary", answers)}
+              />
+            </>
+          ) : null}
+        </Card>
+
         <Card className="border border-accent-200 bg-accent-50">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -212,17 +326,23 @@ export function Evaluacion() {
               <p className="mt-1 text-sm text-gray-600">
                 {cvResult
                   ? "Usa esta evaluación y tu CV para crear un documento ATS, o adaptado a una vacante real específica."
-                  : "Ve a Transición para subir tu CV y desbloquear el generador — ya con estas habilidades listas para incluir."}
+                  : "Sube tu CV abajo, en la sección de esta misma pantalla, para desbloquear el generador."}
               </p>
             </div>
             <Button
               variant="secondary"
               icon={FileText}
               onClick={() => navigate("/transicion", cvResult ? { state: { cvResult } } : undefined)}
+              disabled={!cvResult}
             >
-              {cvResult ? "Generar mi CV" : "Ir a Transición"}
+              {cvResult ? "Generar mi CV" : "Sube tu CV primero"}
             </Button>
           </div>
+          {!cvResult && (
+            <div className="mt-4 border-t border-accent-200 pt-4">
+              <CvDropzone onUploaded={setCvResult} title="" description="" />
+            </div>
+          )}
         </Card>
 
         <div className="flex justify-end gap-3">
@@ -233,6 +353,9 @@ export function Evaluacion() {
       </div>
     );
   }
+
+  const step = steps[stepIndex];
+  const progressPct = Math.round(((stepIndex + 1) / steps.length) * 100);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">

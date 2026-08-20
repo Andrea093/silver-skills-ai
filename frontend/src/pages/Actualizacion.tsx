@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { RefreshCw, CheckCircle2, ExternalLink, BookMarked, ClipboardList } from "lucide-react";
+import { RefreshCw, CheckCircle2, ExternalLink, BookMarked } from "lucide-react";
 import { api } from "../lib/api";
 import { Card, Badge, Button } from "../components/ui";
-import { QuizForm, QuizQuestionDTO } from "../components/QuizForm";
-import { CvDropzone } from "../components/CvDropzone";
 
 interface SkillResource {
   title: string;
@@ -33,13 +31,6 @@ interface SkillsUpdateData {
   disciplinaryOwned?: string[] | null;
   disciplinaryGaps?: SkillGap[] | null;
   disciplinaryTotalGapsCount?: number | null;
-}
-
-interface QuizData {
-  professionLabel: string;
-  behaviorQuestions: QuizQuestionDTO[];
-  specialtyLabel: string | null;
-  knowledgeQuestions: QuizQuestionDTO[];
 }
 
 function OwnedSkillsCard({ title, owned, emptyText }: { title: string; owned: string[] | undefined | null; emptyText: string }) {
@@ -132,43 +123,10 @@ function GapsCard({
 
 export function Actualizacion() {
   const [data, setData] = useState<SkillsUpdateData | null>(null);
-  const [quiz, setQuiz] = useState<QuizData | null>(null);
-  const [showGeneralQuiz, setShowGeneralQuiz] = useState(false);
-  const [showDisciplinaryQuiz, setShowDisciplinaryQuiz] = useState(false);
-  const [submittingQuiz, setSubmittingQuiz] = useState(false);
-
-  function loadData() {
-    api.get<SkillsUpdateData>("/skills-update").then(setData);
-    api.get<QuizData>("/skills-quiz").then(setQuiz);
-  }
 
   useEffect(() => {
-    loadData();
+    api.get<SkillsUpdateData>("/skills-update").then(setData);
   }, []);
-
-  // Uploading a CV here re-detects profession/specialty right away — the same document, wherever
-  // it's uploaded from, so this doesn't send the person to a different tab to do it again.
-  function handleCvUploaded() {
-    loadData();
-  }
-
-  async function handleQuizSubmit(dimension: "general" | "disciplinary", answers: { skill: string; selectedIndex: number }[]) {
-    setSubmittingQuiz(true);
-    try {
-      await api.post("/skills-quiz/submit", { dimension, answers });
-      loadData();
-      if (dimension === "general") {
-        setShowGeneralQuiz(false);
-        // One continuous update instead of two separate quizzes to notice and click into
-        // independently — if there's a second dimension, keep going right away.
-        if (quiz && quiz.knowledgeQuestions.length > 0) setShowDisciplinaryQuiz(true);
-      } else {
-        setShowDisciplinaryQuiz(false);
-      }
-    } finally {
-      setSubmittingQuiz(false);
-    }
-  }
 
   if (!data) return <p className="text-gray-500">Cargando...</p>;
 
@@ -180,22 +138,22 @@ export function Actualizacion() {
           Para quienes ya tienen empleo: descubre qué debes actualizar en cómo haces tu trabajo y en
           lo que sabes de tu especialidad, para seguir siendo competitivo.
         </p>
-        {data?.hasProfile && (
+        {data.hasProfile && (
           <p className="mt-1 text-sm text-gray-500">
-            Esto actualiza el mismo perfil que llenaste en <Link to="/evaluacion" className="font-medium text-brand-700 hover:underline">Evaluación</Link> — no es un cuestionario nuevo desde cero, solo confirmamos qué cambió.
+            Basado en tu CV y tus respuestas en{" "}
+            <Link to="/evaluacion" className="font-medium text-brand-700 hover:underline">Evaluación</Link> —
+            para refrescar estos datos, actualiza tu perfil ahí, no aquí.
           </p>
         )}
       </div>
 
       {!data.hasProfile && (
         <Card className="border border-accent-200 bg-accent-50">
-          <p className="mb-4 text-sm text-accent-700">
+          <p className="text-sm text-accent-700">
             Para ver qué habilidades actualizar en tu profesión, primero necesitamos conocer tu
             perfil. <Link to="/evaluacion" className="font-semibold underline">Completa la evaluación</Link>{" "}
-            o sube tu CV aquí mismo — es el mismo documento en toda la plataforma, no hace falta
-            subirlo en otra pestaña.
+            (sube tu CV ahí también — es el único lugar donde se pide).
           </p>
-          <CvDropzone onUploaded={handleCvUploaded} title="" description="" />
         </Card>
       )}
 
@@ -211,13 +169,10 @@ export function Actualizacion() {
               {data.specialtyLabel && <Badge tone="accent">{data.specialtyLabel}</Badge>}
             </div>
             {data.professionId === "general" && (
-              <div className="mt-4 border-t border-gray-100 pt-4">
-                <p className="mb-3 text-sm text-gray-500">
-                  Sube tu CV aquí mismo para una detección de profesión más precisa — mismo
-                  documento, sin ir a otra pestaña.
-                </p>
-                <CvDropzone onUploaded={handleCvUploaded} title="" description="" />
-              </div>
+              <p className="mt-3 text-sm text-gray-500">
+                Para una detección de profesión más precisa, sube un CV más detallado en{" "}
+                <Link to="/evaluacion" className="font-medium text-brand-700 hover:underline">Evaluación</Link>.
+              </p>
             )}
           </Card>
 
@@ -243,32 +198,6 @@ export function Actualizacion() {
                 totalGapsCount={data.totalGapsCount}
                 emptyText="¡Ya cubres todas las habilidades clave que identificamos para tu profesión!"
               />
-              {quiz && quiz.behaviorQuestions.length > 0 && (
-                <Card className="border border-brand-100 bg-brand-50/60">
-                  <div className="mb-1 flex items-center gap-2 text-brand-900">
-                    <ClipboardList size={17} strokeWidth={2.25} />
-                    <h3 className="font-semibold">Mide tu nivel con preguntas reales</h3>
-                  </div>
-                  <p className="mb-3 text-sm text-brand-900">
-                    Un párrafo de texto no puede medir con precisión tus habilidades. Responde estas
-                    preguntas puntuales para reemplazar la estimación por evidencia real
-                    {quiz && quiz.knowledgeQuestions.length > 0
-                      ? " — sigue directo con las de tu especialidad al terminar, en un solo paso."
-                      : "."}
-                  </p>
-                  {!showGeneralQuiz ? (
-                    <Button variant="outline" onClick={() => setShowGeneralQuiz(true)}>
-                      Actualizar mi perfil
-                    </Button>
-                  ) : (
-                    <QuizForm
-                      questions={quiz.behaviorQuestions}
-                      submitting={submittingQuiz}
-                      onSubmit={(answers) => handleQuizSubmit("general", answers)}
-                    />
-                  )}
-                </Card>
-              )}
             </div>
           </div>
 
@@ -295,38 +224,15 @@ export function Actualizacion() {
                   totalGapsCount={data.disciplinaryTotalGapsCount}
                   emptyText="¡Ya cubres todo el conocimiento disciplinar que identificamos para tu especialidad!"
                 />
-                {quiz && quiz.knowledgeQuestions.length > 0 && (
-                  <Card className="border border-brand-100 bg-brand-50/60">
-                    <div className="mb-1 flex items-center gap-2 text-brand-900">
-                      <ClipboardList size={17} strokeWidth={2.25} />
-                      <h3 className="font-semibold">Pon a prueba tu conocimiento de {data.specialtyLabel}</h3>
-                    </div>
-                    <p className="mb-3 text-sm text-brand-900">
-                      A diferencia de la dimensión anterior, aquí no se trata de autoevaluarte — son
-                      preguntas de conocimiento real, para saber con certeza qué debes actualizar.
-                    </p>
-                    {!showDisciplinaryQuiz ? (
-                      <Button variant="outline" onClick={() => setShowDisciplinaryQuiz(true)}>
-                        Tomar cuestionario
-                      </Button>
-                    ) : (
-                      <QuizForm
-                        questions={quiz.knowledgeQuestions}
-                        submitting={submittingQuiz}
-                        onSubmit={(answers) => handleQuizSubmit("disciplinary", answers)}
-                      />
-                    )}
-                  </Card>
-                )}
               </div>
             ) : (
               <Card className="border border-accent-200 bg-accent-50">
-                <p className="mb-4 text-sm text-accent-700">
+                <p className="text-sm text-accent-700">
                   No pudimos detectar una especialidad específica dentro de tu profesión. Sube un CV
-                  más detallado aquí mismo (mencionando tu área o materia específica) para ver esta
-                  dimensión.
+                  más detallado en{" "}
+                  <Link to="/evaluacion" className="font-semibold underline">Evaluación</Link> (mencionando
+                  tu área o materia específica) para ver esta dimensión.
                 </p>
-                <CvDropzone onUploaded={handleCvUploaded} title="" description="" />
               </Card>
             )}
           </div>

@@ -4,8 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recha
 import { Clock, TrendingUp, Sparkles, ExternalLink, Bookmark, Check, FileSearch, Search, Info, Target } from "lucide-react";
 import { api, API_BASE } from "../lib/api";
 import { Card, ProgressBar, Badge, Button } from "../components/ui";
-import { CvDropzone } from "../components/CvDropzone";
-import { NormalizedJob, PortalSearchLink, CvAnalysisResult, Modality } from "../types";
+import { NormalizedJob, PortalSearchLink, CvAnalysisResult, Modality, SeniorityLevel } from "../types";
 
 interface TransitionData {
   hasProfile: boolean;
@@ -38,6 +37,13 @@ const MODALITIES: { value: Modality; label: string }[] = [
   { value: "onsite", label: "Presencial" },
 ];
 
+const SENIORITY_LEVELS: { value: SeniorityLevel; label: string }[] = [
+  { value: "any", label: "Cualquiera" },
+  { value: "senior", label: "Senior / Experimentado" },
+  { value: "director", label: "Directivo / Gerencial" },
+  { value: "consultant", label: "Consultoría / Asesoría" },
+];
+
 const SOURCE_LABELS: Record<NormalizedJob["source"], string> = {
   spe: "Servicio Público de Empleo",
   adzuna: "Adzuna",
@@ -64,11 +70,16 @@ export function Transicion() {
 
   const [data, setData] = useState<TransitionData | null>(null);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  // The CV lives in Evaluación — this page just reads whatever's already there instead of asking
+  // for it again. incomingCv (handed off via location.state right after uploading in Evaluación)
+  // avoids a redundant fetch when we already know the answer.
   const [cvResult, setCvResult] = useState<CvAnalysisResult | null>(incomingCv || null);
+  const [cvChecked, setCvChecked] = useState(Boolean(incomingCv));
 
   const [country, setCountry] = useState("co");
   const [city, setCity] = useState("");
   const [modality, setModality] = useState<Modality>("any");
+  const [level, setLevel] = useState<SeniorityLevel>("any");
 
   const [generateMode, setGenerateMode] = useState<"ats" | "vacancy">("ats");
   const [generateFormat, setGenerateFormat] = useState<"docx" | "pdf">("docx");
@@ -77,14 +88,25 @@ export function Transicion() {
   const [generateError, setGenerateError] = useState<string | null>(null);
 
   function loadTransition() {
-    const params = new URLSearchParams({ country, modality });
+    const params = new URLSearchParams({ country, modality, level });
     if (city.trim()) params.set("location", city.trim());
     return api.get<TransitionData>(`/transition?${params.toString()}`).then(setData);
   }
 
   useEffect(() => {
     loadTransition();
-  }, [country, city, modality]);
+  }, [country, city, modality, level]);
+
+  useEffect(() => {
+    if (incomingCv) return;
+    api
+      .get<CvAnalysisResult>("/cv/latest")
+      .then(setCvResult)
+      .catch(() => {
+        // 404 just means no CV uploaded yet — not an error state for this page
+      })
+      .finally(() => setCvChecked(true));
+  }, []);
 
   async function handleSave(job: NormalizedJob) {
     await api.post("/jobs/save", {
@@ -177,8 +199,8 @@ export function Transicion() {
           <p className="text-sm text-accent-700">
             Todo lo de esta página depende de tu perfil, y aún no tienes uno.{" "}
             <Link to="/evaluacion" className="font-semibold underline">Completa la evaluación</Link>{" "}
-            o sube tu CV abajo para ver tu riesgo de automatización, potencial de adaptación y vacantes
-            reales compatibles contigo — sin eso no podemos mostrarte nada personalizado.
+            (incluye subir tu CV, ahí y solo ahí) para ver tu riesgo de automatización, potencial de
+            adaptación y vacantes reales compatibles contigo.
           </p>
         </Card>
       )}
@@ -284,14 +306,14 @@ export function Transicion() {
         </>
       )}
 
-      <Card>
-        <CvDropzone
-          onUploaded={(res) => {
-            setCvResult(res);
-            loadTransition(); // a successful CV upload can turn hasProfile from false to true
-          }}
-        />
-      </Card>
+      {cvChecked && !cvResult && (
+        <Card className="border border-gray-200 bg-gray-50">
+          <p className="text-sm text-gray-600">
+            Tu CV se sube una sola vez, en <Link to="/evaluacion" className="font-semibold text-brand-700 underline">Evaluación</Link> —
+            desde ahí queda disponible aquí también para generar una versión optimizada.
+          </p>
+        </Card>
+      )}
 
       {cvResult && (
         <Card className="border border-accent-200 bg-white">
@@ -410,6 +432,19 @@ export function Transicion() {
                 >
                   {MODALITIES.map((m) => (
                     <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="job-level" className="mb-1 block text-xs font-medium text-gray-500">Nivel</label>
+                <select
+                  id="job-level"
+                  value={level}
+                  onChange={(e) => setLevel(e.target.value as SeniorityLevel)}
+                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-brand-500 focus:outline-none"
+                >
+                  {SENIORITY_LEVELS.map((l) => (
+                    <option key={l.value} value={l.value}>{l.label}</option>
                   ))}
                 </select>
               </div>
