@@ -29,6 +29,7 @@ model User {
   chatMessages ChatMessage[]
   cvAnalyses  CvAnalysis[]
   pensionInputs PensionInput[]
+  financialWellnessInputs FinancialWellnessInput[]
   passwordResetTokens PasswordResetToken[]
 }
 
@@ -140,6 +141,19 @@ model PensionInput {
   regime              String // "rpm" | "rais" | "unknown"
   scenario            String // "same" | "formalize" | "change_sector" | "voluntary_contributions"
   createdAt           DateTime @default(now())
+
+  @@index([userId])
+}
+
+model FinancialWellnessInput {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  monthlyIncome   Float
+  monthlyExpenses Float?
+  debts           String? // JSON array of {name, amount, interestRatePct}
+  emergencyFund   Float?
+  createdAt       DateTime @default(now())
 
   @@index([userId])
 }

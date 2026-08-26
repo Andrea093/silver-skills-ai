@@ -300,6 +300,19 @@ export function Pension() {
             Esta es una estimación educativa, no un cálculo oficial. Para tu proyección exacta,
             consulta el simulador de tu fondo de pensiones.
           </p>
+
+          <Card className="flex flex-wrap items-center justify-between gap-3 border border-gray-200">
+            <div>
+              <h2 className="font-semibold">¿Deudas, ahorro o inversión?</h2>
+              <p className="text-sm text-gray-500">
+                Además de tu pensión, revisa si conviene pagar deudas, ahorrar o invertir con tu
+                situación actual.
+              </p>
+            </div>
+            <Button variant="outline" icon={Wallet} onClick={() => navigate("/bienestar-financiero")}>
+              Ir a Bienestar Financiero
+            </Button>
+          </Card>
         </>
       )}
 

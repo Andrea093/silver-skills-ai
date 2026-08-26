@@ -9,6 +9,7 @@ import { Evaluacion } from "./pages/Evaluacion";
 import { Transicion } from "./pages/Transicion";
 import { Actualizacion } from "./pages/Actualizacion";
 import { Pension } from "./pages/Pension";
+import { BienestarFinanciero } from "./pages/BienestarFinanciero";
 import { Cursos } from "./pages/Cursos";
 import { Mentor } from "./pages/Mentor";
 import { Admin } from "./pages/Admin";
@@ -59,6 +60,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Pension />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/bienestar-financiero"
+        element={
+          <ProtectedRoute>
+            <BienestarFinanciero />
           </ProtectedRoute>
         }
       />

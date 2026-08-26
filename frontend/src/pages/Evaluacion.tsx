@@ -9,13 +9,27 @@ import { QuizForm, QuizQuestionDTO } from "../components/QuizForm";
 import { useAuth } from "../context/AuthContext";
 import { CvAnalysisResult } from "../types";
 
+interface InterestArea {
+  label: string;
+  riasecDimension: "R" | "I" | "A" | "S" | "E" | "C";
+}
+
+const RIASEC_LABELS: Record<InterestArea["riasecDimension"], string> = {
+  R: "Realista",
+  I: "Investigativo",
+  A: "Artístico",
+  S: "Social",
+  E: "Emprendedor",
+  C: "Convencional",
+};
+
 interface WizardStep {
   id: string;
   title: string;
   description: string;
   type: "textarea" | "cv-upload" | "quiz" | "multi-select" | "goal-form";
   placeholder?: string;
-  options?: string[];
+  options?: InterestArea[];
 }
 
 interface QuizAnswer {
@@ -141,7 +155,7 @@ export function Evaluacion() {
     try {
       const res = await api.post<{
         professionLabel: string;
-        interestOptions: string[];
+        interestOptions: InterestArea[];
         behaviorQuestions: QuizQuestionDTO[];
         cvSkillNames: string[];
       }>("/assessment/detect-skills", {
@@ -474,21 +488,26 @@ export function Evaluacion() {
         {step.type === "multi-select" && (
           <div className="flex flex-wrap gap-2">
             {step.options?.map((opt) => {
-              const selected = interests.includes(opt);
+              const selected = interests.includes(opt.label);
               return (
                 <button
-                  key={opt}
+                  key={opt.label}
                   type="button"
                   onClick={() =>
-                    setInterests(selected ? interests.filter((i) => i !== opt) : [...interests, opt])
+                    setInterests(
+                      selected ? interests.filter((i) => i !== opt.label) : [...interests, opt.label]
+                    )
                   }
-                  className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                  className={`flex flex-col items-start rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
                     selected
                       ? "border-brand-700 bg-brand-700 text-white"
                       : "border-gray-300 text-gray-600 hover:border-brand-300"
                   }`}
                 >
-                  {opt}
+                  {opt.label}
+                  <span className={`text-xs font-normal ${selected ? "text-brand-100" : "text-gray-400"}`}>
+                    {RIASEC_LABELS[opt.riasecDimension]}
+                  </span>
                 </button>
               );
             })}

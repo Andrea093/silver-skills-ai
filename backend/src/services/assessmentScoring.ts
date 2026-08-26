@@ -68,9 +68,16 @@ export const WIZARD_STEPS = [
   {
     id: "interests",
     title: "Áreas de Interés",
-    description: "Selecciona los sectores o temas que más te interesan",
+    description: "Selecciona los sectores o temas que más te interesan — basado en las 6 áreas de interés ocupacional RIASEC que usa O*NET",
     type: "multi-select",
-    options: ["IA y Tecnología", "Marketing Digital", "Liderazgo", "Finanzas", "Emprendimiento", "Salud Digital"],
+    options: [
+      { label: "IA y Tecnología", riasecDimension: "I" },
+      { label: "Marketing Digital", riasecDimension: "E" },
+      { label: "Liderazgo", riasecDimension: "E" },
+      { label: "Finanzas", riasecDimension: "C" },
+      { label: "Emprendimiento", riasecDimension: "E" },
+      { label: "Salud Digital", riasecDimension: "I" },
+    ],
   },
   {
     id: "goal",

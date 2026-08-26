@@ -115,3 +115,33 @@ export interface PensionResponse {
   projection: PensionProjectionResult;
   createdAt?: string;
 }
+
+export interface FinancialDebt {
+  name: string;
+  amount: number;
+  interestRatePct: number;
+}
+
+export interface FinancialWellnessInputPayload {
+  monthlyIncome: number;
+  monthlyExpenses?: number;
+  debts?: FinancialDebt[];
+  emergencyFund?: number;
+}
+
+export type FinancialPriority = "general" | "debt" | "emergency_fund" | "invest" | "balanced";
+
+export interface FinancialRecommendation {
+  priority: FinancialPriority;
+  rationale: string;
+  steps: string[];
+  highestInterestDebt?: FinancialDebt;
+  emergencyFundMonthsCovered?: number;
+}
+
+export interface FinancialWellnessResponse {
+  id: string;
+  input: FinancialWellnessInputPayload;
+  recommendation: FinancialRecommendation;
+  createdAt?: string;
+}

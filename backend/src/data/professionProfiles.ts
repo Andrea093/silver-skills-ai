@@ -31,6 +31,26 @@ export interface Specialty {
   knowledgeQuestions: KnowledgeQuestion[];
 }
 
+// RIASEC / Holland Codes — the 6 occupational interest areas O*NET itself uses to classify
+// occupations and match them to a person's interests (onetonline.org/explore/interests). Each
+// interest area below is tagged with its real dominant RIASEC dimension instead of being an
+// untethered label, so "Áreas de Interés" is grounded in the same taxonomy O*NET uses.
+export type RiasecDimension = "R" | "I" | "A" | "S" | "E" | "C";
+
+export const RIASEC_LABELS: Record<RiasecDimension, string> = {
+  R: "Realista",
+  I: "Investigativo",
+  A: "Artístico",
+  S: "Social",
+  E: "Emprendedor",
+  C: "Convencional",
+};
+
+export interface InterestArea {
+  label: string;
+  riasecDimension: RiasecDimension;
+}
+
 export interface ProfessionProfile {
   id: string;
   label: string;
@@ -44,7 +64,8 @@ export interface ProfessionProfile {
   specialties?: Specialty[];
   // Real, field-specific growth/interest areas offered in the "Áreas de Interés" wizard step —
   // distinct from atsKeywords (current-role skills): these are where the field itself is heading.
-  interestAreas: string[];
+  // Each tagged with its RIASEC dimension (see above).
+  interestAreas: InterestArea[];
   behaviorQuestions: BehaviorQuestion[];
 }
 
@@ -78,7 +99,13 @@ export const PROFESSION_PROFILES: ProfessionProfile[] = [
       "Diseño instruccional", "TIC en educación", "Pruebas estandarizadas", "Acompañamiento académico",
     ],
     century21Skills: ["Aprendizaje continuo (lifelong learning)", "Alfabetización digital", "Creatividad e innovación", "Comunicación efectiva"],
-    interestAreas: ["Tecnología Educativa (EdTech)", "Educación Inclusiva", "Bilingüismo e Idiomas", "Neuroeducación", "Gestión de Aula Virtual"],
+    interestAreas: [
+      { label: "Tecnología Educativa (EdTech)", riasecDimension: "I" },
+      { label: "Educación Inclusiva", riasecDimension: "S" },
+      { label: "Bilingüismo e Idiomas", riasecDimension: "S" },
+      { label: "Neuroeducación", riasecDimension: "I" },
+      { label: "Gestión de Aula Virtual", riasecDimension: "C" },
+    ],
     behaviorQuestions: [
       {
         skill: "Planeación curricular",
@@ -454,7 +481,13 @@ export const PROFESSION_PROFILES: ProfessionProfile[] = [
       "Manejo de urgencias", "Educación en salud", "Normatividad sanitaria",
     ],
     century21Skills: ["Resolución de problemas complejos", "Comunicación efectiva", "Colaboración en equipos multiculturales", "Adaptabilidad al cambio"],
-    interestAreas: ["Telemedicina", "Salud Mental", "Bienestar Corporativo", "Gerontología y Cuidado del Adulto Mayor", "Medicina Preventiva"],
+    interestAreas: [
+      { label: "Telemedicina", riasecDimension: "I" },
+      { label: "Salud Mental", riasecDimension: "S" },
+      { label: "Bienestar Corporativo", riasecDimension: "S" },
+      { label: "Gerontología y Cuidado del Adulto Mayor", riasecDimension: "S" },
+      { label: "Medicina Preventiva", riasecDimension: "I" },
+    ],
     behaviorQuestions: [
       {
         skill: "Atención al paciente",
@@ -690,7 +723,13 @@ export const PROFESSION_PROFILES: ProfessionProfile[] = [
       "Declaración de impuestos", "Presupuesto y flujo de caja", "Excel avanzado", "Software contable (SAP/Siigo)",
     ],
     century21Skills: ["Pensamiento crítico", "Gestión de la información", "Alfabetización digital", "Resolución de problemas complejos"],
-    interestAreas: ["Finanzas Sostenibles (ESG)", "Fintech", "Automatización Contable", "Criptoactivos y Blockchain", "Planeación Financiera Personal"],
+    interestAreas: [
+      { label: "Finanzas Sostenibles (ESG)", riasecDimension: "I" },
+      { label: "Fintech", riasecDimension: "E" },
+      { label: "Automatización Contable", riasecDimension: "C" },
+      { label: "Criptoactivos y Blockchain", riasecDimension: "I" },
+      { label: "Planeación Financiera Personal", riasecDimension: "C" },
+    ],
     behaviorQuestions: [
       {
         skill: "NIIF",
@@ -862,7 +901,13 @@ export const PROFESSION_PROFILES: ProfessionProfile[] = [
       "Bases de datos", "Automatización de procesos", "Integración de sistemas", "Análisis de requerimientos",
     ],
     century21Skills: ["Resolución de problemas complejos", "Pensamiento crítico", "Alfabetización digital", "Aprendizaje continuo (lifelong learning)"],
-    interestAreas: ["Inteligencia Artificial", "Ciberseguridad", "Computación en la Nube", "Sostenibilidad y Tecnología Verde", "Internet de las Cosas (IoT)"],
+    interestAreas: [
+      { label: "Inteligencia Artificial", riasecDimension: "I" },
+      { label: "Ciberseguridad", riasecDimension: "I" },
+      { label: "Computación en la Nube", riasecDimension: "R" },
+      { label: "Sostenibilidad y Tecnología Verde", riasecDimension: "R" },
+      { label: "Internet de las Cosas (IoT)", riasecDimension: "R" },
+    ],
     behaviorQuestions: [
       {
         skill: "Desarrollo de software",
@@ -1066,7 +1111,13 @@ export const PROFESSION_PROFILES: ProfessionProfile[] = [
       "CRM", "Fidelización de clientes", "Presentaciones comerciales",
     ],
     century21Skills: ["Comunicación efectiva", "Adaptabilidad al cambio", "Colaboración en equipos multiculturales", "Creatividad e innovación"],
-    interestAreas: ["Ventas Consultivas Digitales", "E-commerce", "Experiencia del Cliente (CX)", "Automatización de Ventas (Sales Ops)", "Marketing de Relacionamiento"],
+    interestAreas: [
+      { label: "Ventas Consultivas Digitales", riasecDimension: "E" },
+      { label: "E-commerce", riasecDimension: "E" },
+      { label: "Experiencia del Cliente (CX)", riasecDimension: "S" },
+      { label: "Automatización de Ventas (Sales Ops)", riasecDimension: "C" },
+      { label: "Marketing de Relacionamiento", riasecDimension: "S" },
+    ],
     behaviorQuestions: [
       {
         skill: "Prospección de clientes",
@@ -1238,7 +1289,13 @@ export const PROFESSION_PROFILES: ProfessionProfile[] = [
       "Normatividad laboral", "Evaluación de desempeño",
     ],
     century21Skills: ["Comunicación efectiva", "Colaboración en equipos multiculturales", "Gestión de la información", "Adaptabilidad al cambio"],
-    interestAreas: ["Bienestar Laboral", "People Analytics", "Diversidad e Inclusión", "Trabajo Remoto e Híbrido", "Cultura Organizacional"],
+    interestAreas: [
+      { label: "Bienestar Laboral", riasecDimension: "S" },
+      { label: "People Analytics", riasecDimension: "I" },
+      { label: "Diversidad e Inclusión", riasecDimension: "S" },
+      { label: "Trabajo Remoto e Híbrido", riasecDimension: "C" },
+      { label: "Cultura Organizacional", riasecDimension: "E" },
+    ],
     behaviorQuestions: [
       {
         skill: "Reclutamiento y selección",
@@ -1410,7 +1467,13 @@ export const PROFESSION_PROFILES: ProfessionProfile[] = [
       "Campañas publicitarias", "Marketing digital",
     ],
     century21Skills: ["Creatividad e innovación", "Alfabetización digital", "Comunicación efectiva", "Pensamiento crítico"],
-    interestAreas: ["Marketing de Contenidos", "Inteligencia Artificial en Marketing", "Comunicación Digital", "Marca Personal", "Marketing de Influencers"],
+    interestAreas: [
+      { label: "Marketing de Contenidos", riasecDimension: "A" },
+      { label: "Inteligencia Artificial en Marketing", riasecDimension: "I" },
+      { label: "Comunicación Digital", riasecDimension: "A" },
+      { label: "Marca Personal", riasecDimension: "A" },
+      { label: "Marketing de Influencers", riasecDimension: "E" },
+    ],
     behaviorQuestions: [
       {
         skill: "Estrategia de contenido",
@@ -1582,7 +1645,13 @@ export const PROFESSION_PROFILES: ProfessionProfile[] = [
       "Planeación logística", "Indicadores de gestión (KPI)",
     ],
     century21Skills: ["Resolución de problemas complejos", "Gestión de la información", "Adaptabilidad al cambio", "Colaboración en equipos multiculturales"],
-    interestAreas: ["Logística Sostenible", "Automatización y Robótica", "Comercio Electrónico y Última Milla", "Analítica de Operaciones", "Cadena de Suministro Global"],
+    interestAreas: [
+      { label: "Logística Sostenible", riasecDimension: "C" },
+      { label: "Automatización y Robótica", riasecDimension: "R" },
+      { label: "Comercio Electrónico y Última Milla", riasecDimension: "C" },
+      { label: "Analítica de Operaciones", riasecDimension: "I" },
+      { label: "Cadena de Suministro Global", riasecDimension: "C" },
+    ],
     behaviorQuestions: [
       {
         skill: "Gestión de inventarios",
@@ -1752,7 +1821,13 @@ export const PROFESSION_PROFILES: ProfessionProfile[] = [
       "Redacción de contratos", "Litigio", "Cumplimiento normativo", "Asesoría legal", "Derecho corporativo",
     ],
     century21Skills: ["Pensamiento crítico", "Comunicación efectiva", "Gestión de la información", "Resolución de problemas complejos"],
-    interestAreas: ["Derecho Digital y Protección de Datos", "Legaltech", "Compliance y Ética Corporativa", "Arbitraje y Resolución de Conflictos", "Sostenibilidad y ESG Legal"],
+    interestAreas: [
+      { label: "Derecho Digital y Protección de Datos", riasecDimension: "I" },
+      { label: "Legaltech", riasecDimension: "I" },
+      { label: "Compliance y Ética Corporativa", riasecDimension: "C" },
+      { label: "Arbitraje y Resolución de Conflictos", riasecDimension: "S" },
+      { label: "Sostenibilidad y ESG Legal", riasecDimension: "I" },
+    ],
     behaviorQuestions: [
       {
         skill: "Redacción de contratos",
@@ -1920,7 +1995,14 @@ export const GENERAL_PROFILE: ProfessionProfile = {
   experienceSectionLabel: "Experiencia Profesional",
   atsKeywords: ["Trabajo en equipo", "Orientación a resultados", "Comunicación", "Organización"],
   century21Skills: CORE_CENTURY21_SKILLS.slice(0, 4),
-  interestAreas: ["IA y Tecnología", "Marketing Digital", "Liderazgo", "Finanzas", "Emprendimiento", "Salud Digital"],
+  interestAreas: [
+    { label: "IA y Tecnología", riasecDimension: "I" },
+    { label: "Marketing Digital", riasecDimension: "E" },
+    { label: "Liderazgo", riasecDimension: "E" },
+    { label: "Finanzas", riasecDimension: "C" },
+    { label: "Emprendimiento", riasecDimension: "E" },
+    { label: "Salud Digital", riasecDimension: "I" },
+  ],
   behaviorQuestions: [
     {
       skill: "Trabajo en equipo",

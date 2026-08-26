@@ -20,6 +20,7 @@ import { adminRouter } from "./routes/admin";
 import { skillsUpdateRouter } from "./routes/skillsUpdate";
 import { skillsQuizRouter } from "./routes/skillsQuiz";
 import { pensionRouter } from "./routes/pension";
+import { financialWellnessRouter } from "./routes/financialWellness";
 
 const app = express();
 
@@ -41,6 +42,7 @@ app.use("/api/admin", adminRouter);
 app.use("/api/skills-update", skillsUpdateRouter);
 app.use("/api/skills-quiz", skillsQuizRouter);
 app.use("/api/pension", pensionRouter);
+app.use("/api/financial-wellness", financialWellnessRouter);
 
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);
