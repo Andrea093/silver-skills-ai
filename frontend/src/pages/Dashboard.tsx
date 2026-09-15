@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { TrendingUp, Award, Briefcase, Compass, Sparkles } from "lucide-react";
+import { TrendingUp, Award, Briefcase, Compass, Sparkles, ArrowRight } from "lucide-react";
 import { api } from "../lib/api";
 import { Card, ProgressBar, Badge, Button } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
 import { CvAnalysisResult } from "../types";
-import { skillTier, sortSkillsByLevelDesc } from "../lib/skillTier";
 import { GenerateCvButton } from "../components/GenerateCvButton";
+import { MODULES } from "../lib/modules";
 
 interface DashboardData {
   name: string;
@@ -17,8 +16,6 @@ interface DashboardData {
   activeSkillsCount: number;
   opportunitiesCount: number;
 }
-
-const PIE_COLORS = ["#365e8c", "#d7e0ec"];
 
 export function Dashboard() {
   const { user } = useAuth();
@@ -45,11 +42,6 @@ export function Dashboard() {
   if (!data) return <p className="text-gray-500">No se pudo cargar el dashboard.</p>;
 
   const firstName = (user?.name || data.name).split(" ")[0];
-  const score = data.employabilityScore ?? 0;
-  const pieData = [
-    { name: "Completado", value: score },
-    { name: "Por mejorar", value: 100 - score },
-  ];
 
   return (
     <div className="space-y-6">
@@ -144,70 +136,29 @@ export function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <h2 className="mb-4 font-semibold">Tus Habilidades Actuales</h2>
-          {data.skills.length === 0 ? (
-            <p className="text-sm text-gray-500">
-              Aún no tienes habilidades registradas.{" "}
-              <Link to="/evaluacion" className="font-medium text-brand-700 hover:underline">
-                Completa tu evaluación
-              </Link>
-              .
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {sortSkillsByLevelDesc(data.skills).map((s) => {
-                const tier = skillTier(s.level);
-                return (
-                  <div key={s.name}>
-                    <div className="mb-1 flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-2">
-                        {s.name}
-                        <Badge tone={tier.badgeTone}>{tier.label}</Badge>
-                      </span>
-                      <span className="text-gray-500">{s.level}%</span>
-                    </div>
-                    <ProgressBar value={s.level} colorClass={tier.barColorClass} />
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </Card>
-
-        <Card>
-          <h2 className="mb-4 font-semibold">Distribución de Empleabilidad</h2>
-          {data.hasProfile ? (
-            <>
-              <div className="mx-auto h-48 w-48">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={pieData} dataKey="value" innerRadius={55} outerRadius={80} startAngle={90} endAngle={-270}>
-                      {pieData.map((_, i) => (
-                        <Cell key={i} fill={PIE_COLORS[i]} />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
+      <div>
+        <h2 className="mb-1 font-semibold">Tus módulos</h2>
+        <p className="mb-3 text-sm text-gray-500">
+          El detalle de cada uno vive en su propia página — aquí solo el acceso rápido.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {MODULES.map((m) => (
+            <Link
+              key={m.key}
+              to={m.to}
+              className="group rounded-xl border border-gray-200 bg-white p-4 transition-colors hover:border-brand-300 hover:bg-brand-50/40"
+            >
+              <div className="flex items-center gap-2 text-brand-700">
+                <m.icon size={18} strokeWidth={2.25} />
+                <span className="font-medium text-gray-900">{m.label}</span>
               </div>
-              <div className="mt-2 grid grid-cols-2 gap-3 text-center">
-                <div className="rounded-lg bg-brand-50 py-2">
-                  <div className="text-lg font-semibold text-brand-800">{data.employabilityScore}%</div>
-                  <div className="text-xs text-gray-500">Completado</div>
-                </div>
-                <div className="rounded-lg bg-brand-50 py-2">
-                  <div className="text-lg font-semibold text-brand-800">{100 - score}%</div>
-                  <div className="text-xs text-gray-500">Por mejorar</div>
-                </div>
+              <p className="mt-1.5 text-sm text-gray-500">{m.description}</p>
+              <div className="mt-3 flex items-center gap-1 text-xs font-semibold text-brand-700 opacity-0 transition-opacity group-hover:opacity-100">
+                Ir al módulo <ArrowRight size={13} strokeWidth={2.5} />
               </div>
-            </>
-          ) : (
-            <p className="text-sm text-gray-500">
-              Se calculará automáticamente cuando completes tu evaluación.
-            </p>
-          )}
-        </Card>
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   );

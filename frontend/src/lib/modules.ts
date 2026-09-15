@@ -13,13 +13,16 @@ export interface ModuleDef {
   to: string;
   label: string;
   icon: LucideIcon;
+  // Short one-liner used by Dashboard's module cards — kept here instead of duplicated there, so
+  // there's one place describing what each module is for.
+  description: string;
 }
 
 export const MODULES: ModuleDef[] = [
-  { key: "evaluacion", to: "/evaluacion", label: "Evaluación", icon: Compass },
-  { key: "transicion", to: "/transicion", label: "Transición", icon: TrendingUp },
-  { key: "actualizacion", to: "/actualizacion", label: "Actualización", icon: RefreshCw },
-  { key: "pension", to: "/pension", label: "Pensión", icon: PiggyBank },
-  { key: "bienestar-financiero", to: "/bienestar-financiero", label: "Bienestar Financiero", icon: Wallet },
-  { key: "cursos", to: "/cursos", label: "Cursos", icon: BookOpen },
+  { key: "evaluacion", to: "/evaluacion", label: "Evaluación", icon: Compass, description: "Descubre tus fortalezas y qué habilidades priorizar." },
+  { key: "transicion", to: "/transicion", label: "Transición", icon: TrendingUp, description: "Vacantes reales compatibles con tu perfil." },
+  { key: "actualizacion", to: "/actualizacion", label: "Actualización", icon: RefreshCw, description: "Qué actualizar en tu rol y tu especialidad para seguir competitivo." },
+  { key: "pension", to: "/pension", label: "Pensión", icon: PiggyBank, description: "Proyecta tu pensión y qué palancas te conviene mover." },
+  { key: "bienestar-financiero", to: "/bienestar-financiero", label: "Bienestar Financiero", icon: Wallet, description: "Deudas, ahorro e inversión según tu situación real." },
+  { key: "cursos", to: "/cursos", label: "Cursos", icon: BookOpen, description: "Cursos y programas conectados a tus brechas de habilidades." },
 ];
