@@ -154,10 +154,14 @@ export function MentorWidget() {
         onClick={() => openMentor()}
         aria-label="Abrir Mentor IA"
         title="Mentor IA"
-        className="fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-brand-700 text-white shadow-lg transition-transform hover:scale-105 hover:bg-brand-800"
+        className="group fixed bottom-6 right-6 z-50 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-brand-600 to-brand-800 text-white shadow-xl ring-4 ring-brand-700/20 transition-transform hover:scale-110 hover:shadow-2xl"
         style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
-        <Bot size={26} strokeWidth={2} />
+        <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-brand-600/40 [animation-duration:2.5s]" />
+        <Bot size={40} strokeWidth={2} className="transition-transform group-hover:-rotate-6" />
+        <span className="absolute -top-1 right-0 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-emerald-500">
+          <span className="h-1.5 w-1.5 rounded-full bg-white" />
+        </span>
       </button>
     );
   }
@@ -168,13 +172,13 @@ export function MentorWidget() {
       style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
       <div className="flex items-center justify-between gap-2 border-b border-gray-100 bg-brand-700 px-4 py-3 text-white">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15">
-            <Bot size={18} strokeWidth={2.25} />
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15">
+            <Bot size={22} strokeWidth={2.25} />
           </div>
           <div>
-            <div className="text-sm font-semibold">Mentor IA</div>
-            <div className="text-[11px] text-brand-100">Siempre disponible para ayudarte</div>
+            <div className="text-base font-semibold">Mentor IA</div>
+            <div className="text-xs text-brand-100">Siempre disponible para ayudarte</div>
           </div>
         </div>
         <button
