@@ -5,6 +5,7 @@ import { Clock, TrendingUp, Sparkles, ExternalLink, Bookmark, Check, FileSearch,
 import { api, API_BASE } from "../lib/api";
 import { Card, ProgressBar, Badge, Button } from "../components/ui";
 import { NormalizedJob, PortalSearchLink, CvAnalysisResult, Modality, SeniorityLevel } from "../types";
+import { ModuleStepper } from "../components/ModuleStepper";
 
 interface TransitionData {
   hasProfile: boolean;
@@ -18,6 +19,7 @@ interface TransitionData {
   focusMode: "current" | "goal";
   goalTarget: string | null;
   jobs: NormalizedJob[];
+  filtersRelaxed: boolean;
   portalLinks: PortalSearchLink[];
 }
 
@@ -43,6 +45,15 @@ const SENIORITY_LEVELS: { value: SeniorityLevel; label: string }[] = [
   { value: "director", label: "Directivo / Gerencial" },
   { value: "consultant", label: "Consultoría / Asesoría" },
 ];
+
+// Shown as help text under the "Nivel" filter — the labels alone don't make clear what each one
+// actually targets, which is what people found confusing.
+const SENIORITY_HELP: Record<SeniorityLevel, string> = {
+  any: "Sin filtrar por nivel — mezcla vacantes de todos los niveles.",
+  senior: "Roles que piden experiencia sólida (8+ años) o mencionan un perfil senior/especialista.",
+  director: "Roles de liderazgo: director, gerente, jefe de área o head of.",
+  consultant: "Roles de consultoría o asesoría externa, no cargos internos de planta.",
+};
 
 const SOURCE_LABELS: Record<NormalizedJob["source"], string> = {
   spe: "Servicio Público de Empleo",
@@ -87,15 +98,27 @@ export function Transicion() {
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
 
+  const [jobsLoading, setJobsLoading] = useState(false);
+
   function loadTransition() {
     const params = new URLSearchParams({ country, modality, level });
     if (city.trim()) params.set("location", city.trim());
-    return api.get<TransitionData>(`/transition?${params.toString()}`).then(setData);
+    setJobsLoading(true);
+    return api
+      .get<TransitionData>(`/transition?${params.toString()}`)
+      .then(setData)
+      .finally(() => setJobsLoading(false));
   }
 
+  // Only fetches automatically once, on mount — with the default filters, so "vacantes generales de
+  // mi profesión" show up without the person touching anything. Changing a filter afterward doesn't
+  // refetch until "Buscar vacantes" is clicked, so there's a clear, visible moment when the filter
+  // actually takes effect instead of silently refetching (and sometimes flashing to empty) on every
+  // keystroke in the city field.
   useEffect(() => {
     loadTransition();
-  }, [country, city, modality, level]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (incomingCv) return;
@@ -441,6 +464,7 @@ export function Transicion() {
                   id="job-level"
                   value={level}
                   onChange={(e) => setLevel(e.target.value as SeniorityLevel)}
+                  title={SENIORITY_HELP[level]}
                   className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-brand-500 focus:outline-none"
                 >
                   {SENIORITY_LEVELS.map((l) => (
@@ -448,8 +472,16 @@ export function Transicion() {
                   ))}
                 </select>
               </div>
+              <Button size="md" icon={Search} onClick={loadTransition} disabled={jobsLoading}>
+                {jobsLoading ? "Buscando..." : "Buscar vacantes"}
+              </Button>
             </div>
           </div>
+
+          <p className="mb-3 flex items-center gap-1.5 text-xs text-gray-500">
+            <Info size={12} strokeWidth={2.25} />
+            {SENIORITY_HELP[level]}
+          </p>
 
           {data.jobSearchQuery && (
             <p className="mb-3 text-xs text-gray-500">
@@ -457,8 +489,21 @@ export function Transicion() {
             </p>
           )}
 
-          {data.jobs.length === 0 ? (
-            <p className="text-sm text-gray-500">No se encontraron vacantes en este momento. Usa los enlaces de búsqueda directa abajo.</p>
+          {data.filtersRelaxed && (
+            <p className="mb-3 rounded-lg border border-accent-200 bg-accent-50 px-3 py-2 text-xs text-accent-700">
+              No había vacantes que cumplieran exactamente esos filtros, así que ampliamos la
+              búsqueda — estas son las más cercanas a tu perfil.
+            </p>
+          )}
+
+          {jobsLoading ? (
+            <p className="text-sm text-gray-500">Buscando vacantes...</p>
+          ) : data.jobs.length === 0 ? (
+            <p className="text-sm text-gray-500">
+              No encontramos vacantes para {country !== "co" ? "ese país" : "esos filtros"} en este
+              momento{country !== "co" ? " — la cobertura fuera de Colombia depende de fuentes con clave configurada" : ""}.
+              Prueba con otro país o modalidad, o usa los enlaces de búsqueda directa abajo.
+            </p>
           ) : (
             <div className="space-y-4">
               {data.jobs.map((job) => {
@@ -527,6 +572,8 @@ export function Transicion() {
           </div>
         </Card>
       )}
+
+      <ModuleStepper current="transicion" />
     </div>
   );
 }

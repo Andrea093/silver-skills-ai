@@ -27,6 +27,13 @@ export interface PensionProjectionResult {
   scenario: PensionAmount;
   scenarioDeltaPct: number;
   recommendation: string;
+  // Which concrete lever the numbers say is worth pursuing next, given this person's own inputs —
+  // not just a generic tip, so "aporte voluntario" or "formalizarme" isn't recommended blindly.
+  scenarioHint: string;
+  // Since the projection is directly proportional to currentIncome (see computePensionProjection),
+  // this is exactly how much income would need to rise, in %, to raise the projection by that same
+  // %  — answers "¿cuánto debería subir mi ingreso?" with real numbers instead of a vague "more".
+  incomeIncreaseForTenPctGain: number;
 }
 
 // A full Colombian pension career is conventionally 1300 weeks (25 years) — used here only as the
@@ -82,6 +89,38 @@ const SCENARIO_RECOMMENDATIONS: Record<PensionScenario, string> = {
   voluntary_contributions: "Aumentar tus aportes voluntarios es de las formas más directas de subir tu ingreso proyectado, incluso con montos bajos si empiezas ahora.",
 };
 
+// What each scenario actually means to DO, in concrete terms — separate from
+// SCENARIO_RECOMMENDATIONS above, which is about the projected result, not the action itself. This
+// is what was missing: people could see the resulting number without understanding what "cambiar
+// de sector" or "formalizarme" required them to actually do.
+export const SCENARIO_EXPLANATIONS: Record<PensionScenario, string> = {
+  same: "No cambias nada en tu situación laboral actual — sigues cotizando exactamente igual que hoy.",
+  formalize: "Pasar de un trabajo informal o independiente sin cotizar a un esquema donde sí cotizas cada mes (contrato laboral formal, BEPS, o PILA como independiente). Cada semana que antes no contaba para tu pensión, empieza a contar.",
+  change_sector: "Cambiarte a otra industria o tipo de empresa (por ejemplo, de comercio a tecnología). Por sí sola esta acción no mejora tu proyección — ayuda solo si ese cambio te da mejor ingreso o estabilidad, y ese ingreso extra lo aportas.",
+  voluntary_contributions: "Meter dinero extra, además de tu cotización obligatoria, directamente a tu cuenta de pensión (aporte voluntario en tu fondo/AFP o cuenta AVC). Aumenta tu capital acumulado de forma directa, sin depender de cambiar de trabajo.",
+};
+
+const FULL_CAREER_NEAR_THRESHOLD = 0.8;
+
+/**
+ * Which lever the numbers actually favor for this person, not a generic tip: formalizing only
+ * helps by adding weeks cotizadas, so once someone is already close to a full career (few weeks
+ * left to add), that lever has little room left — a voluntary contribution matters more at that
+ * point. Far from a full career, formalizing is the stronger lever (1.22x > 1.18x above).
+ */
+function scenarioHintFor(weeksContributedUsed: number, scenario: PensionScenario): string {
+  const nearFullCareer = weeksContributedUsed / FULL_CAREER_WEEKS >= FULL_CAREER_NEAR_THRESHOLD;
+  if (scenario === "same" || scenario === "change_sector") {
+    return nearFullCareer
+      ? "Ya llevas la mayoría de las semanas de una carrera completa cotizadas — a esta altura, un aporte voluntario mueve más la aguja que formalizarte."
+      : "Aún te faltan bastantes semanas para completar una carrera cotizada — formalizarte (si hoy no cotizas) suele ser la palanca más fuerte en este punto.";
+  }
+  if (scenario === "formalize" && nearFullCareer) {
+    return "Ya estás cerca de una carrera completa cotizada, así que formalizarte suma menos de lo que sumaría en alguien con menos semanas — considera combinarlo con aporte voluntario.";
+  }
+  return "";
+}
+
 export function computePensionProjection(input: PensionEstimateInput): PensionProjectionResult {
   const weeks = estimateWeeksContributed(input.age, input.weeksContributed, input.yearsWorkedEstimate);
   const rate = replacementRate(weeks);
@@ -96,5 +135,9 @@ export function computePensionProjection(input: PensionEstimateInput): PensionPr
     scenario: withRange(scenarioAmount),
     scenarioDeltaPct: Math.round((multiplier - 1) * 100),
     recommendation: SCENARIO_RECOMMENDATIONS[input.scenario],
+    scenarioHint: scenarioHintFor(weeks, input.scenario),
+    // The projection is baselineAmount = currentIncome * rate — linear in currentIncome — so a 10%
+    // income increase always yields exactly a 10% projection increase, regardless of scenario.
+    incomeIncreaseForTenPctGain: 10,
   };
 }

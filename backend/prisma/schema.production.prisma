@@ -104,6 +104,7 @@ model Course {
   tags           String // JSON array
   category       String
   featured       Boolean @default(false)
+  programType    String   @default("course")
   createdAt      DateTime @default(now())
 }
 

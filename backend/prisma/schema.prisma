@@ -93,6 +93,10 @@ model Course {
   tags           String // JSON array
   category       String
   featured       Boolean @default(false)
+  // "course" = curso corto (default, entradas existentes); "degree" = programa universitario de
+  // pregrado/posgrado; "certification" = certificación universitaria — distingue programas de
+  // universidades reales de los cursos cortos que ya poblaban este modelo.
+  programType    String   @default("course")
   createdAt      DateTime @default(now())
 }
 

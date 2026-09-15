@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { Home, Compass, TrendingUp, RefreshCw, PiggyBank, Wallet, BookOpen, Sparkles, ShieldCheck, LogOut, Type } from "lucide-react";
+import { Home, Compass, TrendingUp, RefreshCw, PiggyBank, Wallet, BookOpen, ShieldCheck, LogOut, Type } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { applyTextScale, getStoredTextScale, nextTextScale, TextScale } from "../lib/textScale";
 import { Logo } from "./Logo";
@@ -13,7 +13,6 @@ const NAV_ITEMS = [
   { to: "/pension", label: "Pensión", icon: PiggyBank },
   { to: "/bienestar-financiero", label: "Bienestar Financiero", icon: Wallet },
   { to: "/cursos", label: "Cursos", icon: BookOpen },
-  { to: "/mentor", label: "Mentor IA", icon: Sparkles },
 ];
 
 function initials(name: string) {

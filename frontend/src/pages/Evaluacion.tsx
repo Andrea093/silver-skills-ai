@@ -8,6 +8,8 @@ import { CvDropzone } from "../components/CvDropzone";
 import { QuizForm, QuizQuestionDTO } from "../components/QuizForm";
 import { useAuth } from "../context/AuthContext";
 import { CvAnalysisResult } from "../types";
+import { skillTier, sortSkillsByLevelDesc } from "../lib/skillTier";
+import { ModuleStepper } from "../components/ModuleStepper";
 
 interface InterestArea {
   label: string;
@@ -56,25 +58,73 @@ interface RefreshQuizData {
 
 const PIE_COLORS = ["#365e8c", "#d7e0ec"];
 
+// Abandoning the wizard mid-way used to lose everything typed so far — this key namespaces the
+// draft per user so a reload or a "come back later" restores exactly where they left off, instead
+// of forcing a full retake. Cleared on successful submit and on an explicit "start over".
+function draftKey(userId: string) {
+  return `eval-draft:${userId}`;
+}
+
+interface WizardDraft {
+  stepIndex: number;
+  experienceText: string;
+  quizAnswers: QuizAnswer[];
+  interests: string[];
+  goal: string;
+  weeklyHours: number;
+}
+
+function loadDraft(userId: string): WizardDraft | null {
+  try {
+    const raw = localStorage.getItem(draftKey(userId));
+    return raw ? (JSON.parse(raw) as WizardDraft) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function Evaluacion() {
-  const { refresh } = useAuth();
+  const { user, refresh } = useAuth();
   const navigate = useNavigate();
   const [steps, setSteps] = useState<WizardStep[]>([]);
-  const [stepIndex, setStepIndex] = useState(0);
-  const [experienceText, setExperienceText] = useState("");
+  const draft = user ? loadDraft(user.id) : null;
+  const [stepIndex, setStepIndex] = useState(draft?.stepIndex ?? 0);
+  const [experienceText, setExperienceText] = useState(draft?.experienceText ?? "");
   const [cvResult, setCvResult] = useState<CvAnalysisResult | null>(null);
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestionDTO[]>([]);
-  const [quizAnswers, setQuizAnswers] = useState<QuizAnswer[]>([]);
+  const [quizAnswers, setQuizAnswers] = useState<QuizAnswer[]>(draft?.quizAnswers ?? []);
   const [cvSkillNames, setCvSkillNames] = useState<string[]>([]);
   const [professionLabel, setProfessionLabel] = useState("");
   const [loadingQuiz, setLoadingQuiz] = useState(false);
   const [quizLoadError, setQuizLoadError] = useState(false);
-  const [interests, setInterests] = useState<string[]>([]);
-  const [goal, setGoal] = useState("");
-  const [weeklyHours, setWeeklyHours] = useState(5);
+  const [interests, setInterests] = useState<string[]>(draft?.interests ?? []);
+  const [goal, setGoal] = useState(draft?.goal ?? "");
+  const [weeklyHours, setWeeklyHours] = useState(draft?.weeklyHours ?? 5);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<AssessmentResult | null>(null);
   const [checkingExisting, setCheckingExisting] = useState(true);
+
+  // Persist the draft on every change, once we know whether this is a fresh start or a restored
+  // draft (skipped while checkingExisting, so a saved result about to load doesn't get clobbered
+  // by an empty draft for one render).
+  useEffect(() => {
+    if (!user || checkingExisting || result) return;
+    const toSave: WizardDraft = { stepIndex, experienceText, quizAnswers, interests, goal, weeklyHours };
+    try {
+      localStorage.setItem(draftKey(user.id), JSON.stringify(toSave));
+    } catch {
+      // storage full/unavailable — losing draft persistence isn't worth surfacing an error for
+    }
+  }, [user, checkingExisting, result, stepIndex, experienceText, quizAnswers, interests, goal, weeklyHours]);
+
+  function clearDraft() {
+    if (!user) return;
+    try {
+      localStorage.removeItem(draftKey(user.id));
+    } catch {
+      // nothing to clean up if storage isn't available
+    }
+  }
 
   // "Actualizar mis habilidades" — the periodic re-measurement that used to live in Actualización,
   // relocated here so this is the single place that both captures and refreshes skill data (same
@@ -88,6 +138,14 @@ export function Evaluacion() {
 
   useEffect(() => {
     api.get<{ steps: WizardStep[] }>("/assessment/steps").then((data) => setSteps(data.steps));
+    // The CV may have been uploaded from this page, another one, or a previous session — it's
+    // saved server-side the moment it's analyzed, so read it back instead of requiring a re-upload.
+    api
+      .get<CvAnalysisResult>("/cv/latest")
+      .then(setCvResult)
+      .catch(() => {
+        // 404 just means no CV uploaded yet
+      });
     api
       .get<AssessmentResult>("/assessment/latest")
       .then(setResult)
@@ -135,6 +193,7 @@ export function Evaluacion() {
   }
 
   function startFullRetake() {
+    clearDraft();
     setResult(null);
     setRefreshDone(false);
     setStepIndex(0);
@@ -187,6 +246,7 @@ export function Evaluacion() {
       const payload = { experienceText, quizAnswers: answers, interests, goal, weeklyHours };
       const res = await api.post<AssessmentResult>("/assessment", payload);
       setResult(res);
+      clearDraft();
       await refresh();
     } finally {
       setSubmitting(false);
@@ -229,17 +289,26 @@ export function Evaluacion() {
 
         <div className="grid gap-4 md:grid-cols-2">
           <Card>
-            <h2 className="mb-4 font-semibold">Tus Habilidades</h2>
+            <h2 className="mb-1 font-semibold">Tus Habilidades</h2>
+            <p className="mb-4 text-sm text-gray-500">
+              De la más fuerte a la que más te conviene trabajar.
+            </p>
             <div className="space-y-3">
-              {result.resultSkills.map((s) => (
-                <div key={s.name}>
-                  <div className="mb-1 flex justify-between text-sm">
-                    <span>{s.name}</span>
-                    <span className="text-gray-500">{s.level}%</span>
+              {sortSkillsByLevelDesc(result.resultSkills).map((s) => {
+                const tier = skillTier(s.level);
+                return (
+                  <div key={s.name}>
+                    <div className="mb-1 flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-2">
+                        {s.name}
+                        <Badge tone={tier.badgeTone}>{tier.label}</Badge>
+                      </span>
+                      <span className="text-gray-500">{s.level}%</span>
+                    </div>
+                    <ProgressBar value={s.level} colorClass={tier.barColorClass} />
                   </div>
-                  <ProgressBar value={s.level} />
-                </div>
-              ))}
+                );
+              })}
             </div>
           </Card>
 
@@ -385,6 +454,8 @@ export function Evaluacion() {
             Ver Mapa de Transición Laboral
           </Button>
         </div>
+
+        <ModuleStepper current="evaluacion" />
       </div>
     );
   }

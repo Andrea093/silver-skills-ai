@@ -18,12 +18,19 @@ export function buildProviderSearchLink(provider: string, topic: string): string
   return `https://www.google.com/search?q=${encodeURIComponent(`${provider} curso ${topic}`)}`;
 }
 
-export async function listCourses(params: { category?: string; search?: string; recommendedSkillNames?: string[] }) {
-  const { category, search, recommendedSkillNames } = params;
+export async function listCourses(params: {
+  category?: string;
+  search?: string;
+  recommendedSkillNames?: string[];
+  goalContext?: { intent: "change" | "stay"; target: string | null };
+}) {
+  const { category, search, recommendedSkillNames, goalContext } = params;
   const all = await prisma.course.findMany({ orderBy: [{ featured: "desc" }, { rating: "desc" }] });
 
   const personalize = Boolean(recommendedSkillNames && recommendedSkillNames.length > 0);
   const recommended = (recommendedSkillNames || []).map((s) => s.toLowerCase());
+  const wantsChange = goalContext?.intent === "change";
+  const goalTargetWords = (goalContext?.target || "").toLowerCase();
 
   return all
     .filter((c) => !category || category === "Todos" || c.category === category)
@@ -39,11 +46,22 @@ export async function listCourses(params: { category?: string; search?: string; 
     })
     .map((c) => {
       const tags: string[] = JSON.parse(c.tags);
+      const matchesGoalTarget =
+        wantsChange &&
+        goalTargetWords.length > 0 &&
+        (c.category.toLowerCase().includes(goalTargetWords) ||
+          goalTargetWords.includes(c.category.toLowerCase()) ||
+          tags.some((t) => goalTargetWords.includes(t.toLowerCase()) || t.toLowerCase().includes(goalTargetWords)));
       // Once we know the user's own recommended/weak skills (from their assessment), "recommended
-      // for you" reflects that instead of the static catalog-wide featured flag.
-      const featured = personalize
-        ? recommended.some((skill) => tags.some((t) => t.toLowerCase().includes(skill)) || c.category.toLowerCase().includes(skill))
-        : c.featured;
+      // for you" reflects that instead of the static catalog-wide featured flag. When the person
+      // said they want to change careers (not just upskill), a university program that matches
+      // their stated goal is a stronger recommendation than a short course for their current gaps.
+      const featured =
+        c.programType !== "course" && matchesGoalTarget
+          ? true
+          : personalize
+          ? recommended.some((skill) => tags.some((t) => t.toLowerCase().includes(skill)) || c.category.toLowerCase().includes(skill))
+          : c.featured;
       return { ...c, tags, featured };
     })
     .sort((a, b) => Number(b.featured) - Number(a.featured) || b.rating - a.rating);

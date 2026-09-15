@@ -56,6 +56,7 @@ export interface Course {
   category?: string;
   featured?: boolean;
   isSearchLink?: boolean;
+  programType?: "course" | "degree" | "certification";
 }
 
 export interface LearningPath {
@@ -107,6 +108,8 @@ export interface PensionProjectionResult {
   scenario: PensionAmount;
   scenarioDeltaPct: number;
   recommendation: string;
+  scenarioHint: string;
+  incomeIncreaseForTenPctGain: number;
 }
 
 export interface PensionResponse {

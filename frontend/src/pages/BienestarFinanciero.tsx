@@ -3,6 +3,7 @@ import { AlertCircle, Info, Plus, Trash2, Wallet } from "lucide-react";
 import { api } from "../lib/api";
 import { Card, Button, Badge } from "../components/ui";
 import { FinancialDebt, FinancialWellnessInputPayload, FinancialWellnessResponse, FinancialPriority } from "../types";
+import { ModuleStepper } from "../components/ModuleStepper";
 
 const PRIORITY_LABELS: Record<FinancialPriority, string> = {
   general: "Guía general",
@@ -276,6 +277,8 @@ export function BienestarFinanciero() {
           </p>
         </Card>
       )}
+
+      <ModuleStepper current="bienestar-financiero" />
     </div>
   );
 }

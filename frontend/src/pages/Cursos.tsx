@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, TrendingUp, Clock, BookOpen, Star, ExternalLink, X } from "lucide-react";
+import { Search, TrendingUp, Clock, BookOpen, Star, ExternalLink, X, GraduationCap } from "lucide-react";
 import { api } from "../lib/api";
 import { Card, Badge, IconBadge, Button } from "../components/ui";
 import { Course, LearningPath } from "../types";
+import { ModuleStepper } from "../components/ModuleStepper";
 
 const CATEGORIES = ["Todos", "IA y Tecnología", "Marketing Digital", "Liderazgo", "Finanzas", "Emprendimiento"];
 
@@ -38,6 +39,11 @@ export function Cursos() {
 
   const selectedPath = paths.find((p) => p.id === selectedPathId) || null;
   const displayedCourses = selectedPath ? selectedPath.courses : courses;
+  // Universities/degree programs are seeded with their own programType and surfaced in their own
+  // section instead of mixed into the short-course list — a maestría and a 3-week course aren't
+  // comparable the same way, and a learning path never bundles a program, only short courses.
+  const shortCourses = displayedCourses.filter((c) => !c.programType || c.programType === "course");
+  const programs = !selectedPath ? courses.filter((c) => c.programType && c.programType !== "course") : [];
 
   return (
     <div className="space-y-6">
@@ -144,7 +150,7 @@ export function Cursos() {
         <p className="text-gray-500">Cargando cursos...</p>
       ) : (
         <div className="space-y-4">
-          {displayedCourses.map((course) => (
+          {shortCourses.map((course) => (
             <div
               key={course.id}
               className={`rounded-xl border p-4 ${
@@ -196,11 +202,67 @@ export function Cursos() {
               </div>
             </div>
           ))}
-          {displayedCourses.length === 0 && (
+          {shortCourses.length === 0 && (
             <p className="text-sm text-gray-500">No encontramos cursos para esa búsqueda. Prueba con otro término.</p>
           )}
         </div>
       )}
+
+      {programs.length > 0 && (
+        <Card>
+          <div className="mb-1 flex items-center gap-2">
+            <GraduationCap size={18} strokeWidth={2} className="text-brand-700" />
+            <h2 className="font-semibold">Universidades y Programas</h2>
+          </div>
+          <p className="mb-4 text-sm text-gray-500">
+            Para cuando lo que buscas es un cambio de carrera más a fondo, no solo un curso corto —
+            maestrías, posgrados y certificaciones universitarias reales.
+          </p>
+          <div className="space-y-4">
+            {programs.map((program) => (
+              <div
+                key={program.id}
+                className={`rounded-xl border p-4 ${
+                  program.featured ? "border-accent-300 bg-accent-50/30" : "border-gray-200"
+                }`}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Badge tone="brand">{program.programType === "degree" ? "Maestría / Posgrado" : "Certificación universitaria"}</Badge>
+                      {program.featured && (
+                        <Badge tone="accent" icon={Star}>Conectado a tu objetivo</Badge>
+                      )}
+                    </div>
+                    <div className="mt-1 font-medium">{program.title}</div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500">
+                      <span className="inline-flex items-center gap-1">
+                        <GraduationCap size={13} strokeWidth={2.25} /> {program.provider}
+                      </span>
+                      <span>{program.level}</span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {program.tags.map((t) => (
+                        <Badge key={t} tone="neutral">{t}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-semibold text-gray-800">{program.priceLabel}</div>
+                    <a href={program.url} target="_blank" rel="noopener noreferrer">
+                      <Button size="md" icon={ExternalLink} iconPosition="right" className="mt-2">
+                        Explorar programas
+                      </Button>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      <ModuleStepper current="cursos" />
     </div>
   );
 }

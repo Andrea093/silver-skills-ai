@@ -5,6 +5,8 @@ import { api } from "../lib/api";
 import { Card, Button, Badge } from "../components/ui";
 import { PensionInputPayload, PensionRegime, PensionResponse, PensionScenario } from "../types";
 import { FINANCIAL_TOPICS } from "../data/financialTopics";
+import { ModuleStepper } from "../components/ModuleStepper";
+import { useMentor } from "../context/MentorContext";
 
 const REGIME_OPTIONS: { value: PensionRegime; label: string }[] = [
   { value: "unknown", label: "No lo sé" },
@@ -26,12 +28,22 @@ const SCENARIO_LABEL_SHORT: Record<PensionScenario, string> = {
   voluntary_contributions: "aumentas tus aportes voluntarios",
 };
 
+// What each option actually means to DO — shown right under the selector so the choice is never a
+// bare label without context, before there's even a result to show.
+const SCENARIO_EXPLANATIONS: Record<PensionScenario, string> = {
+  same: "No cambias nada en tu situación laboral actual — sigues cotizando exactamente igual que hoy.",
+  formalize: "Pasar de un trabajo informal o independiente sin cotizar a un esquema donde sí cotizas cada mes (contrato laboral formal, BEPS, o PILA como independiente).",
+  change_sector: "Cambiarte a otra industria o tipo de empresa. Por sí sola esta acción no mejora tu proyección — ayuda solo si ese cambio te da mejor ingreso o estabilidad, y ese ingreso extra lo aportas.",
+  voluntary_contributions: "Meter dinero extra, además de tu cotización obligatoria, directamente a tu cuenta de pensión (aporte voluntario en tu fondo/AFP o cuenta AVC).",
+};
+
 function formatCurrency(n: number) {
   return `$${Math.round(n).toLocaleString("es-CO")}`;
 }
 
 export function Pension() {
   const navigate = useNavigate();
+  const { openMentor } = useMentor();
 
   const [age, setAge] = useState("");
   const [weeksContributed, setWeeksContributed] = useState("");
@@ -100,7 +112,7 @@ export function Pension() {
   }
 
   function talkToMentor(prompt: string) {
-    navigate("/mentor", { state: { prefillMessage: prompt } });
+    openMentor(prompt);
   }
 
   if (loadingInitial) return <p className="text-gray-500">Cargando...</p>;
@@ -239,6 +251,9 @@ export function Pension() {
                 </option>
               ))}
             </select>
+            <p className="mt-2 rounded-lg bg-gray-50 p-3 text-xs text-gray-600">
+              {SCENARIO_EXPLANATIONS[scenario]}
+            </p>
           </div>
 
           {error && (
@@ -293,6 +308,16 @@ export function Pension() {
           <Card className="border border-brand-100 bg-brand-50">
             <p className="text-sm text-brand-900">
               <strong>Recomendación:</strong> {result.projection.recommendation}
+            </p>
+            {result.projection.scenarioHint && (
+              <p className="mt-2 text-sm text-brand-900">
+                <strong>Para tu caso:</strong> {result.projection.scenarioHint}
+              </p>
+            )}
+            <p className="mt-2 text-sm text-brand-900">
+              Tu proyección es directamente proporcional a tu ingreso: si tu ingreso sube un{" "}
+              {result.projection.incomeIncreaseForTenPctGain}%, tu proyección sube ese mismo
+              porcentaje — no hace falta duplicar tu ingreso para ver una mejora real.
             </p>
           </Card>
 
@@ -356,6 +381,8 @@ export function Pension() {
           })}
         </div>
       </Card>
+
+      <ModuleStepper current="pension" />
     </div>
   );
 }

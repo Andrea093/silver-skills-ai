@@ -18,13 +18,22 @@ const detectSkillsSchema = z.object({
   cvExtractedSkills: z.array(z.string()).optional(),
 });
 
+// The free-text "cuéntanos tu experiencia" box is often thin (a couple of sentences), while an
+// already-uploaded CV (backend/src/routes/cv.ts) has much stronger signal — combining both means
+// profession detection doesn't depend on the person having typed a detailed paragraph.
+async function detectionTextFor(userId: string, experienceText: string): Promise<string> {
+  const latestCv = await prisma.cvAnalysis.findFirst({ where: { userId }, orderBy: { createdAt: "desc" } });
+  return latestCv ? `${latestCv.rawText} ${experienceText}` : experienceText;
+}
+
 assessmentRouter.post("/detect-skills", requireAuth, async (req, res) => {
   const parsed = detectSkillsSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Datos inválidos" });
 
   // Real, field-specific growth areas instead of the same generic 6-item list for everyone —
-  // detected the same way as everything else here, from the person's own text.
-  const profile = detectProfession(parsed.data.experienceText);
+  // detected the same way as everything else here, from the person's own text plus their CV.
+  const detectionText = await detectionTextFor(req.userId!, parsed.data.experienceText);
+  const profile = detectProfession(detectionText);
   res.json({
     professionLabel: profile.label,
     interestOptions: profile.interestAreas,
@@ -55,8 +64,10 @@ assessmentRouter.post("/", requireAuth, async (req, res) => {
 
   // Re-detect profession server-side and re-score against the real question bank — never trust a
   // level sent by the client, only which option index they picked for a named question (same
-  // principle as skillsQuiz.ts).
-  const profile = detectProfession(submitted.experienceText);
+  // principle as skillsQuiz.ts). Same combined CV+text signal as detect-skills, so the profession
+  // used to score the submitted answers matches the one the questions were actually generated from.
+  const detectionText = await detectionTextFor(req.userId!, submitted.experienceText);
+  const profile = detectProfession(detectionText);
   const questionBank: BehaviorQuestion[] = [...profile.behaviorQuestions, ...CENTURY21_BEHAVIOR_QUESTIONS];
   const currentSkills = submitted.quizAnswers
     .map((answer) => {

@@ -9,6 +9,7 @@ const prisma = new PrismaClient();
 // leads to a real, working page, but rating/duration/students figures on those are
 // representative platform-level estimates rather than pulled from one specific course.
 const COURSES = [
+
   {
     title: "Generative AI for Everyone",
     provider: "Coursera (DeepLearning.AI)",
@@ -193,6 +194,104 @@ const COURSES = [
   },
 ];
 
+// Universidades y programas de grado/posgrado reales, para quienes buscan cambiar de carrera (no
+// solo potenciar habilidades con un curso corto) — mismo patrón que los cursos 6-12 arriba: enlazan
+// a páginas reales de búsqueda/catálogo de la universidad o plataforma (Coursera Degrees, edX
+// Degrees), no a una URL de programa específico inventada. `programType` los distingue de los
+// cursos cortos de arriba.
+const PROGRAMS = [
+  {
+    title: "Maestrías y posgrados en línea de universidades acreditadas",
+    provider: "Coursera Degrees",
+    url: "https://www.coursera.org/degrees",
+    isFree: false,
+    priceLabel: "Varía por universidad y programa",
+    durationWeeks: 96,
+    level: "Posgrado",
+    rating: 4.6,
+    studentsCount: 50000,
+    tags: ["Maestría", "Posgrado", "MBA", "Ciencia de Datos"],
+    category: "IA y Tecnología",
+    featured: false,
+    programType: "degree",
+  },
+  {
+    title: "Programas de pregrado y posgrado en línea",
+    provider: "edX Degrees",
+    url: "https://www.edx.org/degrees",
+    isFree: false,
+    priceLabel: "Varía por universidad y programa",
+    durationWeeks: 96,
+    level: "Pregrado/Posgrado",
+    rating: 4.5,
+    studentsCount: 30000,
+    tags: ["Pregrado", "Posgrado", "Certificación universitaria"],
+    category: "IA y Tecnología",
+    featured: false,
+    programType: "degree",
+  },
+  {
+    title: "Maestrías en Marketing Digital de universidades reales",
+    provider: "Coursera (catálogo de universidades)",
+    url: "https://www.coursera.org/search?query=maestr%C3%ADa%20en%20marketing%20digital",
+    isFree: false,
+    priceLabel: "Varía por universidad y programa",
+    durationWeeks: 72,
+    level: "Posgrado",
+    rating: 4.5,
+    studentsCount: 12000,
+    tags: ["Maestría", "Marketing Digital", "Posgrado"],
+    category: "Marketing Digital",
+    featured: false,
+    programType: "degree",
+  },
+  {
+    title: "Maestrías en Liderazgo y Gestión de Equipos",
+    provider: "Coursera (catálogo de universidades)",
+    url: "https://www.coursera.org/search?query=maestr%C3%ADa%20en%20liderazgo%20y%20gesti%C3%B3n",
+    isFree: false,
+    priceLabel: "Varía por universidad y programa",
+    durationWeeks: 72,
+    level: "Posgrado",
+    rating: 4.5,
+    studentsCount: 9000,
+    tags: ["Maestría", "Liderazgo", "Gestión de equipos"],
+    category: "Liderazgo",
+    featured: false,
+    programType: "degree",
+  },
+  {
+    title: "Especializaciones universitarias en Finanzas Personales y Retiro",
+    provider: "edX (catálogo de universidades)",
+    url: "https://www.edx.org/search?q=personal+finance+certificate",
+    isFree: false,
+    priceLabel: "Varía por universidad y programa",
+    durationWeeks: 48,
+    level: "Certificación universitaria",
+    rating: 4.4,
+    studentsCount: 7000,
+    tags: ["Finanzas", "Retiro", "Certificación universitaria"],
+    category: "Finanzas",
+    featured: false,
+    programType: "certification",
+  },
+  {
+    title: "MBA y programas universitarios de Emprendimiento",
+    provider: "Coursera (catálogo de universidades)",
+    url: "https://www.coursera.org/search?query=MBA%20emprendimiento",
+    isFree: false,
+    priceLabel: "Varía por universidad y programa",
+    durationWeeks: 96,
+    level: "Posgrado",
+    rating: 4.5,
+    studentsCount: 11000,
+    tags: ["MBA", "Emprendimiento", "Posgrado"],
+    category: "Emprendimiento",
+    featured: false,
+    programType: "degree",
+  },
+];
+
 async function main() {
   console.log("Seeding courses...");
   await prisma.course.deleteMany();
@@ -204,6 +303,13 @@ async function main() {
     createdCourses.push(created);
   }
   const byTitle = new Map(createdCourses.map((c) => [c.title, c.id]));
+
+  console.log("Seeding university programs...");
+  for (const p of PROGRAMS) {
+    await prisma.course.create({
+      data: { ...p, tags: JSON.stringify(p.tags) },
+    });
+  }
 
   console.log("Seeding learning paths...");
   await prisma.learningPath.deleteMany();

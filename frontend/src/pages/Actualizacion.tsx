@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { RefreshCw, CheckCircle2, ExternalLink, BookMarked } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { RefreshCw, CheckCircle2, ExternalLink, BookMarked, Sparkles, FileText } from "lucide-react";
 import { api } from "../lib/api";
 import { Card, Badge, Button } from "../components/ui";
+import { CvAnalysisResult } from "../types";
+import { ModuleStepper } from "../components/ModuleStepper";
 
 interface SkillResource {
   title: string;
@@ -122,10 +124,20 @@ function GapsCard({
 }
 
 export function Actualizacion() {
+  const navigate = useNavigate();
   const [data, setData] = useState<SkillsUpdateData | null>(null);
+  const [cvResult, setCvResult] = useState<CvAnalysisResult | null>(null);
 
   useEffect(() => {
     api.get<SkillsUpdateData>("/skills-update").then(setData);
+    // Already uploaded/saved elsewhere (Evaluación, Transición) — reused here so the Premium CV
+    // buttons work without asking the person to upload it a second time.
+    api
+      .get<CvAnalysisResult>("/cv/latest")
+      .then(setCvResult)
+      .catch(() => {
+        // 404 just means no CV uploaded yet
+      });
   }, []);
 
   if (!data) return <p className="text-gray-500">Cargando...</p>;
@@ -154,6 +166,30 @@ export function Actualizacion() {
             perfil. <Link to="/evaluacion" className="font-semibold underline">Completa la evaluación</Link>{" "}
             (sube tu CV ahí también — es el único lugar donde se pide).
           </p>
+        </Card>
+      )}
+
+      {cvResult && (
+        <Card className="border border-accent-200 bg-accent-50">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <Badge tone="accent" icon={Sparkles}>Premium</Badge>
+                <h2 className="font-semibold">Genera tu CV optimizado</h2>
+              </div>
+              <p className="mt-1 text-sm text-gray-600">
+                Ya tenemos tu CV guardado — úsalo para crear un documento ATS, o adaptado a una
+                vacante real específica, sin volver a subirlo.
+              </p>
+            </div>
+            <Button
+              variant="secondary"
+              icon={FileText}
+              onClick={() => navigate("/transicion", { state: { cvResult } })}
+            >
+              Generar mi CV
+            </Button>
+          </div>
         </Card>
       )}
 
@@ -238,6 +274,8 @@ export function Actualizacion() {
           </div>
         </>
       )}
+
+      <ModuleStepper current="actualizacion" />
     </div>
   );
 }

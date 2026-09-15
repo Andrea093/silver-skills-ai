@@ -468,6 +468,82 @@ export const PROFESSION_PROFILES: ProfessionProfile[] = [
       },
     ],
   },
+  // Added as its own top-level profession — previously biology/natural sciences only existed as a
+  // specialty nested under "Educación y Docencia" (id "ciencias-naturales" above), which meant a
+  // research/lab scientist who isn't a teacher never reached it: "educacion"'s own top-level
+  // keywords are all teaching-specific (docente, aula, estudiantes...), so their CV scored 0 there
+  // and could get misclassified into an unrelated profession by an incidental generic-word match.
+  {
+    id: "ciencias-investigacion",
+    label: "Ciencias Naturales e Investigación",
+    matchKeywords: [
+      "bióloga", "biólogo", "científica", "científico", "microbiología", "bioquímica", "ecología",
+      "botánica", "zoología", "genética", "biotecnología", "taxonomía",
+      "licenciada en biología", "licenciado en biología", "ciencias biológicas", "ciencias naturales",
+      "investigadora científica", "investigador científico", "laboratorio de biología",
+      "trabajo de campo", "conservación ambiental", "biología molecular", "biología marina",
+    ],
+    experienceSectionLabel: "Experiencia en Investigación",
+    atsKeywords: [
+      "Diseño experimental", "Análisis de datos científicos", "Trabajo de campo",
+      "Protocolos de laboratorio", "Redacción de artículos científicos", "Bioestadística",
+      "Gestión de proyectos de investigación", "Normas de bioseguridad",
+    ],
+    century21Skills: ["Pensamiento crítico", "Resolución de problemas complejos", "Gestión de la información", "Aprendizaje continuo (lifelong learning)"],
+    interestAreas: [
+      { label: "Biotecnología", riasecDimension: "I" },
+      { label: "Conservación y Medio Ambiente", riasecDimension: "I" },
+      { label: "Bioinformática", riasecDimension: "I" },
+      { label: "Divulgación Científica", riasecDimension: "A" },
+      { label: "Gestión de Proyectos de Investigación", riasecDimension: "E" },
+    ],
+    behaviorQuestions: [
+      {
+        skill: "Diseño experimental",
+        question: "Cuando planteas una pregunta de investigación, ¿con qué frecuencia defines de antemano variables controladas y un grupo de comparación antes de recolectar datos?",
+        options: [
+          "Nunca lo planeo, recolecto datos y luego veo qué encuentro",
+          "Rara vez, suelo improvisar sobre la marcha",
+          "A veces, depende del tiempo disponible",
+          "Frecuentemente diseño el experimento antes de empezar",
+          "Siempre defino variables, controles e hipótesis antes de recolectar cualquier dato",
+        ],
+      },
+      {
+        skill: "Análisis de datos científicos",
+        question: "¿Qué tan seguido usas pruebas estadísticas (no solo promedios o porcentajes) para respaldar tus conclusiones?",
+        options: [
+          "Nunca, reporto los datos sin análisis estadístico",
+          "Rara vez",
+          "A veces, en los proyectos más formales",
+          "Frecuentemente aplico pruebas estadísticas apropiadas",
+          "Siempre valido mis conclusiones con el análisis estadístico correcto para el tipo de dato",
+        ],
+      },
+      {
+        skill: "Protocolos de laboratorio",
+        question: "¿Con qué frecuencia documentas tus procedimientos de laboratorio o campo de forma que otra persona pueda replicarlos exactamente?",
+        options: [
+          "Nunca documento el procedimiento, solo el resultado",
+          "Rara vez, con notas mínimas",
+          "A veces, según la importancia del experimento",
+          "Frecuentemente documento pasos y condiciones con detalle",
+          "Siempre mantengo un protocolo replicable, con condiciones y versiones registradas",
+        ],
+      },
+      {
+        skill: "Redacción de artículos científicos",
+        question: "¿Qué tan seguido comunicas tus hallazgos en un formato estructurado (informe, artículo, póster) pensado para que otros científicos lo evalúen?",
+        options: [
+          "Nunca, comparto solo resultados verbales o informales",
+          "Rara vez",
+          "A veces, cuando me lo piden explícitamente",
+          "Frecuentemente preparo informes o artículos estructurados",
+          "Siempre documento y comunico mis hallazgos en formato científico formal, listo para revisión",
+        ],
+      },
+    ],
+  },
   {
     id: "salud",
     label: "Salud",
@@ -891,9 +967,15 @@ export const PROFESSION_PROFILES: ProfessionProfile[] = [
   {
     id: "ingenieria-tecnologia",
     label: "Ingeniería y Tecnología",
+    // "sistemas", "datos", "ti" y "tecnología" se quitaron de aquí: son palabras genéricas que
+    // aparecen en CVs de otras disciplinas (ej. una bióloga que menciona "sistema de monitoreo" o
+    // "análisis de datos experimentales") y antes bastaban por sí solas para ganarle a la profesión
+    // real de la persona. Se mantienen solo señales específicas de ingeniería/tecnología.
     matchKeywords: [
       "ingeniero", "ingeniera", "desarrollador", "desarrolladora", "software", "programación",
-      "sistemas", "ti", "tecnología", "datos", "devops", "arquitectura de software", "backend", "frontend",
+      "devops", "arquitectura de software", "backend", "frontend", "ingeniero de sistemas",
+      "ingeniería de sistemas", "ingeniero de software", "ingeniería de software", "programador",
+      "programadora", "desarrollo de software", "ciencias de la computación",
     ],
     experienceSectionLabel: "Experiencia Técnica",
     atsKeywords: [
@@ -2304,21 +2386,34 @@ function matchesKeyword(haystack: string, keyword: string): boolean {
   return new RegExp(`\\b${escaped}\\b`).test(haystack);
 }
 
+// A single generic word ("datos", "sistemas") is a weak signal — it appears across many
+// professions' CVs incidentally, so on its own it shouldn't be enough to win a category. A
+// multi-word phrase ("ingeniero de sistemas", "licenciada en biología") is a much stronger,
+// near-unambiguous signal (typically a real degree/role title), so it's weighted higher. Used
+// together with MIN_MATCH_SCORE below so one incidental generic-word hit can no longer make an
+// unrelated profession "win" a CV by accident.
+function keywordWeight(keyword: string): number {
+  return /\s/.test(keyword.trim()) ? 3 : 1;
+}
+
+const MIN_MATCH_SCORE = 2;
+
+function scoreKeywords(haystack: string, keywords: string[]): number {
+  return keywords.reduce((sum, kw) => sum + (matchesKeyword(haystack, kw) ? keywordWeight(kw) : 0), 0);
+}
+
 export function detectProfession(rawText: string, headline?: string): ProfessionProfile {
   const haystack = normalizeForMatch(`${headline || ""} ${rawText}`);
 
   let best: { profile: ProfessionProfile; score: number } | null = null;
   for (const profile of PROFESSION_PROFILES) {
-    const score = profile.matchKeywords.reduce(
-      (sum, kw) => sum + (matchesKeyword(haystack, kw) ? 1 : 0),
-      0
-    );
+    const score = scoreKeywords(haystack, profile.matchKeywords);
     if (score > 0 && (!best || score > best.score)) {
       best = { profile, score };
     }
   }
 
-  return best ? best.profile : GENERAL_PROFILE;
+  return best && best.score >= MIN_MATCH_SCORE ? best.profile : GENERAL_PROFILE;
 }
 
 /**
@@ -2333,10 +2428,7 @@ export function detectSpecialty(profile: ProfessionProfile, rawText: string, hea
 
   let best: { specialty: Specialty; score: number } | null = null;
   for (const specialty of profile.specialties) {
-    const score = specialty.matchKeywords.reduce(
-      (sum, kw) => sum + (matchesKeyword(haystack, kw) ? 1 : 0),
-      0
-    );
+    const score = scoreKeywords(haystack, specialty.matchKeywords);
     if (score > 0 && (!best || score > best.score)) {
       best = { specialty, score };
     }

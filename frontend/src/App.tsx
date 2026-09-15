@@ -11,13 +11,18 @@ import { Actualizacion } from "./pages/Actualizacion";
 import { Pension } from "./pages/Pension";
 import { BienestarFinanciero } from "./pages/BienestarFinanciero";
 import { Cursos } from "./pages/Cursos";
-import { Mentor } from "./pages/Mentor";
 import { Admin } from "./pages/Admin";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { MentorProvider } from "./context/MentorContext";
+import { MentorWidget } from "./components/MentorWidget";
+import { useAuth } from "./context/AuthContext";
 
 export default function App() {
+  const { user } = useAuth();
+
   return (
-    <Routes>
+    <MentorProvider>
+      <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
@@ -80,14 +85,6 @@ export default function App() {
         }
       />
       <Route
-        path="/mentor"
-        element={
-          <ProtectedRoute>
-            <Mentor />
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/admin"
         element={
           <ProtectedRoute>
@@ -95,6 +92,8 @@ export default function App() {
           </ProtectedRoute>
         }
       />
-    </Routes>
+      </Routes>
+      {user && <MentorWidget />}
+    </MentorProvider>
   );
 }

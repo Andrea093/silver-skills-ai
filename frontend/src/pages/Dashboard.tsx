@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { TrendingUp, Award, Briefcase, Compass } from "lucide-react";
+import { TrendingUp, Award, Briefcase, Compass, Sparkles, FileText } from "lucide-react";
 import { api } from "../lib/api";
 import { Card, ProgressBar, Badge, Button } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
+import { CvAnalysisResult } from "../types";
+import { skillTier, sortSkillsByLevelDesc } from "../lib/skillTier";
 
 interface DashboardData {
   name: string;
@@ -19,14 +21,24 @@ const PIE_COLORS = ["#365e8c", "#d7e0ec"];
 
 export function Dashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [cvResult, setCvResult] = useState<CvAnalysisResult | null>(null);
 
   useEffect(() => {
     api
       .get<DashboardData>("/dashboard")
       .then(setData)
       .finally(() => setLoading(false));
+    // Already saved wherever it was first uploaded (Evaluación, Transición, Actualización) — reused
+    // here so the Premium CV buttons work without asking the person to upload it again.
+    api
+      .get<CvAnalysisResult>("/cv/latest")
+      .then(setCvResult)
+      .catch(() => {
+        // 404 just means no CV uploaded yet
+      });
   }, []);
 
   if (loading) return <p className="text-gray-500">Cargando...</p>;
@@ -59,6 +71,30 @@ export function Dashboard() {
             o sube tu CV en <Link to="/transicion" className="font-semibold underline">Transición</Link> para
             ver tu índice de empleabilidad, habilidades y vacantes reales compatibles contigo.
           </p>
+        </Card>
+      )}
+
+      {cvResult && (
+        <Card className="border border-accent-200 bg-accent-50">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <Badge tone="accent" icon={Sparkles}>Premium</Badge>
+                <h2 className="font-semibold">Genera tu CV optimizado</h2>
+              </div>
+              <p className="mt-1 text-sm text-gray-600">
+                Ya tenemos tu CV guardado — úsalo para crear un documento ATS, o adaptado a una
+                vacante real específica, sin volver a subirlo.
+              </p>
+            </div>
+            <Button
+              variant="secondary"
+              icon={FileText}
+              onClick={() => navigate("/transicion", { state: { cvResult } })}
+            >
+              Generar mi CV
+            </Button>
+          </div>
         </Card>
       )}
 
@@ -127,15 +163,21 @@ export function Dashboard() {
             </p>
           ) : (
             <div className="space-y-3">
-              {data.skills.map((s) => (
-                <div key={s.name}>
-                  <div className="mb-1 flex justify-between text-sm">
-                    <span>{s.name}</span>
-                    <span className="text-gray-500">{s.level}%</span>
+              {sortSkillsByLevelDesc(data.skills).map((s) => {
+                const tier = skillTier(s.level);
+                return (
+                  <div key={s.name}>
+                    <div className="mb-1 flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-2">
+                        {s.name}
+                        <Badge tone={tier.badgeTone}>{tier.label}</Badge>
+                      </span>
+                      <span className="text-gray-500">{s.level}%</span>
+                    </div>
+                    <ProgressBar value={s.level} colorClass={tier.barColorClass} />
                   </div>
-                  <ProgressBar value={s.level} />
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </Card>

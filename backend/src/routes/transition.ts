@@ -2,7 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/requireAuth";
 import { SECTOR_GROWTH } from "../data/sectorGrowth";
-import { searchJobs, buildPortalSearchLinks, Modality, SeniorityLevel } from "../services/jobAggregator";
+import { searchJobsWithMeta, buildPortalSearchLinks, Modality, SeniorityLevel } from "../services/jobAggregator";
 import { parseCvSections } from "../services/cvParser";
 import { detectProfession, detectSpecialty } from "../data/professionProfiles";
 import { classifyGoalIntent, extractGoalTarget } from "../data/goalIntent";
@@ -50,7 +50,9 @@ transitionRouter.get("/", requireAuth, async (req, res) => {
     jobQuery = parsedCv.headline || (profession.id !== "general" ? professionWithSpecialty : topSkill) || topSkill;
   }
 
-  const jobs = hasProfile ? await searchJobs(jobQuery!, country, { location, modality, seniority }) : [];
+  const jobResult = hasProfile
+    ? await searchJobsWithMeta(jobQuery!, country, { location, modality, seniority })
+    : { jobs: [], filtersRelaxed: false };
   const portalLinks = hasProfile ? buildPortalSearchLinks(jobQuery!, country, location, modality, seniority) : [];
 
   res.json({
@@ -66,7 +68,8 @@ transitionRouter.get("/", requireAuth, async (req, res) => {
     jobSearchQuery: jobQuery || null, // used for the jobs list — a real job title, not just a skill name
     focusMode: wantsChange && goalTarget ? "goal" : "current",
     goalTarget: wantsChange ? goalTarget : null,
-    jobs,
+    jobs: jobResult.jobs,
+    filtersRelaxed: jobResult.filtersRelaxed,
     portalLinks,
   });
 });

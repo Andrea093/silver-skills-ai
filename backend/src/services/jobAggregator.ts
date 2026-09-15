@@ -50,20 +50,45 @@ function matchesModality(text: string, modality: Modality | undefined): boolean 
   return true;
 }
 
-// Checked against the title only (not the full description) — a description can mention "junior"
-// in passing (e.g. "colaborarás con un analista junior") without the posting itself being an
-// entry-level role, but a title rarely does.
+// Entry-level exclusion stays title-only — a description can mention "junior" in passing (e.g.
+// "colaborarás con un analista junior") without the posting itself being entry-level, but a title
+// rarely does. The positive seniority signal, though, used to be checked against the title alone —
+// most real postings don't spell out seniority there, so with a handful of raw results per source
+// that filtered almost everything to zero. Checking the description too (where "buscamos un perfil
+// senior con 8+ años..." actually lives) is what makes this filter find anything at all.
 const ENTRY_LEVEL_TITLE = /\bjunior\b|\bjr\.?\b|trainee|practicante|pr[aá]ctica|becari[oa]|aprendiz|sin\s+experiencia|reci[eé]n\s+egresad[oa]/i;
-const SENIORITY_TITLE_SIGNAL: Record<Exclude<SeniorityLevel, "any">, RegExp> = {
-  senior: /\bsenior\b|\bs[eé]nior\b|\bsr\.?\b|especialista|experimentad[oa]/i,
-  director: /director|gerente|gerencial|jefe\s+de|head\s+of|manager|l[ií]der\s+de/i,
+const SENIORITY_SIGNAL: Record<Exclude<SeniorityLevel, "any">, RegExp> = {
+  senior: /\bsenior\b|\bs[eé]nior\b|\bsr\.?\b|especialista|experimentad[oa]|(\b[89]\b|\b1[0-9]\b)\s*(\+\s*)?años/i,
+  director: /director|gerente|gerencial|jefe\s+de|head\s+of|manager|l[ií]der\s+de|liderazgo\s+de\s+equipo/i,
   consultant: /consultor|consultor[ií]a|asesor(?![ií]a\s+comercial)/i,
 };
 
-function matchesSeniority(title: string, seniority: SeniorityLevel | undefined): boolean {
+function matchesSeniority(title: string, description: string | undefined, seniority: SeniorityLevel | undefined): boolean {
   if (!seniority || seniority === "any") return true;
   if (ENTRY_LEVEL_TITLE.test(title)) return false;
-  return SENIORITY_TITLE_SIGNAL[seniority].test(title);
+  const signal = SENIORITY_SIGNAL[seniority];
+  return signal.test(title) || signal.test(description || "");
+}
+
+// Same accent/case-insensitive comparison used for the seniority/modality text checks, applied to
+// city names — "Bogotá" typed by the user has to match "bogota" as returned by an API, and vice versa.
+function normalizeLocationText(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
+}
+
+const REMOTE_LOCATION_TEXT = /\bremot[oa]\b|\bremote\b/i;
+
+// Half the sources here (Remotive, Arbeitnow) never accept a city as a query param — the only real
+// place to check it is the location string every source already normalizes into `location`. A
+// remote posting is left in regardless of the requested city: someone filtering by city almost
+// certainly still wants to see remote openings, not have them silently dropped.
+function matchesCityText(location: string, city: string | undefined): boolean {
+  if (!city || !city.trim()) return true;
+  if (REMOTE_LOCATION_TEXT.test(location)) return true;
+  return normalizeLocationText(location).includes(normalizeLocationText(city));
 }
 
 // Real phrases a posting's own text uses to signal openness to older/senior candidates — same
@@ -487,7 +512,7 @@ async function searchSpeColombia(query: string, country: string, opts: JobSearch
   }
 }
 
-export async function searchJobs(query: string, country = "mx", opts: JobSearchOptions = {}): Promise<NormalizedJob[]> {
+async function fetchAllJobs(query: string, country: string, opts: JobSearchOptions): Promise<NormalizedJob[]> {
   const [adzuna, jooble, remotive, arbeitnow, spe] = await Promise.all([
     searchAdzuna(query, country, opts),
     searchJooble(query, opts),
@@ -495,10 +520,38 @@ export async function searchJobs(query: string, country = "mx", opts: JobSearchO
     searchArbeitnow(query, opts),
     searchSpeColombia(query, country, opts),
   ]);
-  const jobs = [...spe, ...adzuna, ...jooble, ...remotive, ...arbeitnow].filter((job) =>
-    matchesSeniority(job.title, opts.seniority)
+  return [...spe, ...adzuna, ...jooble, ...remotive, ...arbeitnow];
+}
+
+// City and seniority are applied here, after merging every source, instead of trusting each
+// source's own API-level support for them — most of these sources either ignore one of those
+// params entirely or only half-support it (see the source-specific comments above), so relying on
+// that alone silently drops the filter instead of applying it.
+function applyUserFilters(jobs: NormalizedJob[], opts: JobSearchOptions): NormalizedJob[] {
+  return jobs.filter(
+    (job) =>
+      matchesSeniority(job.title, job.description, opts.seniority) && matchesCityText(job.location, opts.location)
   );
-  return jobs.map((job) => ({ ...job, ageFriendly: hasAgeFriendlySignal(job) }));
+}
+
+export interface JobSearchResult {
+  jobs: NormalizedJob[];
+  // True when the requested filters (city/seniority) would have returned zero results, so we fell
+  // back to the unfiltered set instead — the frontend uses this to explain why what's shown doesn't
+  // strictly match the filters, rather than silently ignoring them or showing an empty list.
+  filtersRelaxed: boolean;
+}
+
+export async function searchJobsWithMeta(query: string, country = "mx", opts: JobSearchOptions = {}): Promise<JobSearchResult> {
+  const raw = await fetchAllJobs(query, country, opts);
+  const filtered = applyUserFilters(raw, opts);
+  const filtersRelaxed = filtered.length === 0 && raw.length > 0;
+  const jobs = filtersRelaxed ? raw : filtered;
+  return { jobs: jobs.map((job) => ({ ...job, ageFriendly: hasAgeFriendlySignal(job) })), filtersRelaxed };
+}
+
+export async function searchJobs(query: string, country = "mx", opts: JobSearchOptions = {}): Promise<NormalizedJob[]> {
+  return (await searchJobsWithMeta(query, country, opts)).jobs;
 }
 
 const COUNTRY_NAMES: Record<string, string> = {
