@@ -7,6 +7,7 @@ import { analyzeCv } from "../services/cvAnalyzer";
 import { generateTailoredCv } from "../services/cvGenerator";
 import { detectProfession } from "../data/professionProfiles";
 import { parseCvSections } from "../services/cvParser";
+import { columnAwarePageRender } from "../services/pdfColumnAwareRender";
 
 export const cvRouter = Router();
 
@@ -43,7 +44,10 @@ async function extractText(file: Express.Multer.File): Promise<string> {
   const ext = file.originalname.split(".").pop()?.toLowerCase();
   if (ext === "pdf") {
     const pdfParse = (await import("pdf-parse")).default;
-    const data = await pdfParse(file.buffer);
+    // Custom pagerender instead of pdf-parse's default: reconstructs proper reading order for
+    // two-column résumé templates (Canva and similar) instead of interleaving both columns line
+    // by line — see pdfColumnAwareRender.ts for why that matters for CV section detection.
+    const data = await pdfParse(file.buffer, { pagerender: columnAwarePageRender });
     return data.text;
   }
   if (ext === "docx" || ext === "doc") {
