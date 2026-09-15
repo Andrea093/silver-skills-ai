@@ -143,7 +143,10 @@ model PensionInput {
   yearsWorkedEstimate Int? // fallback used to approximate weeksContributed when the above is unknown
   currentIncome       Float
   regime              String // "rpm" | "rais" | "unknown"
-  scenario            String // "same" | "formalize" | "change_sector" | "voluntary_contributions"
+  // Kept for reference — now set to whichever scenario the projection recommended, not a value
+  // the user picked (the scenario selector was replaced with computing every lever at once).
+  scenario            String // "same" | "formalize" | "change_regime" | "voluntary_contributions"
+  voluntaryMonthlyAmount Float? // real amount the person said they could contribute, if given
   createdAt           DateTime @default(now())
 
   @@index([userId])

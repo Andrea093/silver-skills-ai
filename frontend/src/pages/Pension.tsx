@@ -1,9 +1,9 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertCircle, ChevronDown, Info, MessageCircle, PiggyBank, Wallet } from "lucide-react";
+import { AlertCircle, ChevronDown, Info, MessageCircle, Sparkles, Wallet } from "lucide-react";
 import { api } from "../lib/api";
 import { Card, Button, Badge } from "../components/ui";
-import { PensionInputPayload, PensionRegime, PensionResponse, PensionScenario } from "../types";
+import { PensionInputPayload, PensionRegime, PensionResponse } from "../types";
 import { FINANCIAL_TOPICS } from "../data/financialTopics";
 import { ModuleStepper } from "../components/ModuleStepper";
 import { useMentor } from "../context/MentorContext";
@@ -13,29 +13,6 @@ const REGIME_OPTIONS: { value: PensionRegime; label: string }[] = [
   { value: "rpm", label: "RPM (Régimen de Prima Media)" },
   { value: "rais", label: "RAIS (Régimen de Ahorro Individual)" },
 ];
-
-const SCENARIO_OPTIONS: { value: PensionScenario; label: string }[] = [
-  { value: "same", label: "Seguir en mi empleo actual, sin cambios" },
-  { value: "formalize", label: "Formalizarme" },
-  { value: "change_sector", label: "Cambiar de sector" },
-  { value: "voluntary_contributions", label: "Aumentar mis aportes voluntarios" },
-];
-
-const SCENARIO_LABEL_SHORT: Record<PensionScenario, string> = {
-  same: "sigues como hoy",
-  formalize: "te formalizas",
-  change_sector: "cambias de sector",
-  voluntary_contributions: "aumentas tus aportes voluntarios",
-};
-
-// What each option actually means to DO — shown right under the selector so the choice is never a
-// bare label without context, before there's even a result to show.
-const SCENARIO_EXPLANATIONS: Record<PensionScenario, string> = {
-  same: "No cambias nada en tu situación laboral actual — sigues cotizando exactamente igual que hoy.",
-  formalize: "Pasar de un trabajo informal o independiente sin cotizar a un esquema donde sí cotizas cada mes (contrato laboral formal, BEPS, o PILA como independiente).",
-  change_sector: "Cambiarte a otra industria o tipo de empresa. Por sí sola esta acción no mejora tu proyección — ayuda solo si ese cambio te da mejor ingreso o estabilidad, y ese ingreso extra lo aportas.",
-  voluntary_contributions: "Meter dinero extra, además de tu cotización obligatoria, directamente a tu cuenta de pensión (aporte voluntario en tu fondo/AFP o cuenta AVC).",
-};
 
 function formatCurrency(n: number) {
   return `$${Math.round(n).toLocaleString("es-CO")}`;
@@ -50,7 +27,7 @@ export function Pension() {
   const [yearsWorkedEstimate, setYearsWorkedEstimate] = useState("");
   const [currentIncome, setCurrentIncome] = useState("");
   const [regime, setRegime] = useState<PensionRegime>("unknown");
-  const [scenario, setScenario] = useState<PensionScenario>("same");
+  const [voluntaryMonthlyAmount, setVoluntaryMonthlyAmount] = useState("");
 
   const [result, setResult] = useState<PensionResponse | null>(null);
   const [loadingInitial, setLoadingInitial] = useState(true);
@@ -68,7 +45,7 @@ export function Pension() {
         setYearsWorkedEstimate(res.input.yearsWorkedEstimate ? String(res.input.yearsWorkedEstimate) : "");
         setCurrentIncome(String(res.input.currentIncome));
         setRegime(res.input.regime);
-        setScenario(res.input.scenario);
+        setVoluntaryMonthlyAmount(res.input.voluntaryMonthlyAmount ? String(res.input.voluntaryMonthlyAmount) : "");
       })
       .catch(() => {
         // no previous projection yet — start with an empty form
@@ -95,9 +72,9 @@ export function Pension() {
       age: ageNum,
       currentIncome: incomeNum,
       regime,
-      scenario,
       ...(weeksContributed ? { weeksContributed: Number(weeksContributed) } : {}),
       ...(yearsWorkedEstimate ? { yearsWorkedEstimate: Number(yearsWorkedEstimate) } : {}),
+      ...(voluntaryMonthlyAmount ? { voluntaryMonthlyAmount: Number(voluntaryMonthlyAmount) } : {}),
     };
 
     setSubmitting(true);
@@ -132,8 +109,9 @@ export function Pension() {
           <h2 className="font-semibold">Cómo usar esta herramienta</h2>
         </div>
         <p className="text-sm text-brand-900">
-          Completa tus datos básicos y elige un escenario. Te mostramos una proyección aproximada de
-          tu ingreso en la vejez hoy, comparada con la que tendrías si tomas esa decisión.
+          Completa tus datos básicos. En vez de pedirte elegir un escenario hipotético, calculamos
+          las palancas reales (formalizarte, aporte voluntario, cambio de régimen) a la vez y te
+          decimos cuál conviene más según tus propios datos.
         </p>
       </Card>
 
@@ -236,23 +214,21 @@ export function Pension() {
           </div>
 
           <div>
-            <label htmlFor="pension-scenario" className="mb-1 block text-sm font-medium text-gray-700">
-              Escenario a simular
+            <label htmlFor="pension-voluntary" className="mb-1 block text-sm font-medium text-gray-700">
+              Aporte voluntario mensual que podrías hacer (opcional)
             </label>
-            <select
-              id="pension-scenario"
-              value={scenario}
-              onChange={(e) => setScenario(e.target.value as PensionScenario)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none sm:w-80"
-            >
-              {SCENARIO_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            <p className="mt-2 rounded-lg bg-gray-50 p-3 text-xs text-gray-600">
-              {SCENARIO_EXPLANATIONS[scenario]}
+            <input
+              id="pension-voluntary"
+              type="number"
+              min={0}
+              value={voluntaryMonthlyAmount}
+              onChange={(e) => setVoluntaryMonthlyAmount(e.target.value)}
+              placeholder="Ej. 200000"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none sm:w-64"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Si lo dejas vacío, te mostramos el efecto de un aporte voluntario ilustrativo en vez
+              de uno calculado sobre un monto real tuyo.
             </p>
           </div>
 
@@ -271,49 +247,56 @@ export function Pension() {
 
       {result && (
         <>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <div className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-500">
-                <PiggyBank size={16} strokeWidth={2} />
-                <span>Tu ingreso estimado en la vejez, si sigues como hoy</span>
-              </div>
-              <p className="text-xs text-gray-500">Basado en tus datos actuales</p>
-              <div className="my-3 text-3xl font-bold">{formatCurrency(result.projection.baseline.amount)}</div>
-              <p className="text-sm text-gray-500">
-                Rango estimado: {formatCurrency(result.projection.baseline.low)} —{" "}
-                {formatCurrency(result.projection.baseline.high)} mensuales
-              </p>
-            </Card>
+          <Card>
+            <div className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-500">
+              <Wallet size={16} strokeWidth={2} />
+              <span>Tu ingreso estimado en la vejez si sigues exactamente como hoy</span>
+            </div>
+            <p className="text-xs text-gray-500">Línea base, calculada de tus datos actuales</p>
+            <div className="my-3 text-3xl font-bold">{formatCurrency(result.projection.baseline.amount)}</div>
+            <p className="text-sm text-gray-500">
+              Rango estimado: {formatCurrency(result.projection.baseline.low)} —{" "}
+              {formatCurrency(result.projection.baseline.high)} mensuales
+            </p>
+          </Card>
 
-            <Card>
-              <div className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-500">
-                <Wallet size={16} strokeWidth={2} />
-                <span>Tu ingreso estimado si {SCENARIO_LABEL_SHORT[result.input.scenario]}</span>
-              </div>
-              <p className="text-xs text-gray-500">Comparado con tu situación actual</p>
-              <div className="my-3 flex items-center gap-3">
-                <span className="text-3xl font-bold">{formatCurrency(result.projection.scenario.amount)}</span>
-                <Badge tone={result.projection.scenarioDeltaPct >= 0 ? "success" : "neutral"}>
-                  {result.projection.scenarioDeltaPct >= 0 ? "+" : ""}
-                  {result.projection.scenarioDeltaPct}%
-                </Badge>
-              </div>
-              <p className="text-sm text-gray-500">
-                Rango estimado: {formatCurrency(result.projection.scenario.low)} —{" "}
-                {formatCurrency(result.projection.scenario.high)} mensuales
-              </p>
-            </Card>
+          <div>
+            <h2 className="mb-1 font-semibold">Qué pasa si...</h2>
+            <p className="mb-3 text-sm text-gray-500">
+              Cada palanca, calculada con tus propios datos — no tienes que elegir una para verlas.
+            </p>
+            <div className="grid gap-4 md:grid-cols-2">
+              {result.projection.scenarios.map((s) => {
+                const isRecommended = s.scenario === result.projection.recommendedScenario;
+                return (
+                  <Card
+                    key={s.scenario}
+                    className={isRecommended ? "border-2 border-brand-400 bg-brand-50/40" : "border border-gray-200"}
+                  >
+                    <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-medium">{s.label}</span>
+                      {isRecommended && (
+                        <Badge tone="accent" icon={Sparkles}>Recomendado para ti</Badge>
+                      )}
+                    </div>
+                    <div className="my-2 flex items-center gap-3">
+                      <span className="text-2xl font-bold">{formatCurrency(s.amount.amount)}</span>
+                      <Badge tone={s.deltaPct >= 0 ? "success" : "neutral"}>
+                        {s.deltaPct >= 0 ? "+" : ""}
+                        {s.deltaPct}%
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-gray-500">{s.explanation}</p>
+                  </Card>
+                );
+              })}
+            </div>
           </div>
 
           <Card className="border border-brand-100 bg-brand-50">
             <p className="text-sm text-brand-900">
-              <strong>Recomendación:</strong> {result.projection.recommendation}
+              <strong>Para tu caso:</strong> {result.projection.recommendationRationale}
             </p>
-            {result.projection.scenarioHint && (
-              <p className="mt-2 text-sm text-brand-900">
-                <strong>Para tu caso:</strong> {result.projection.scenarioHint}
-              </p>
-            )}
             <p className="mt-2 text-sm text-brand-900">
               Tu proyección es directamente proporcional a tu ingreso: si tu ingreso sube un{" "}
               {result.projection.incomeIncreaseForTenPctGain}%, tu proyección sube ese mismo
@@ -322,8 +305,10 @@ export function Pension() {
           </Card>
 
           <p className="rounded-lg bg-gray-50 px-4 py-3 text-xs text-gray-500">
-            Esta es una estimación educativa, no un cálculo oficial. Para tu proyección exacta,
-            consulta el simulador de tu fondo de pensiones.
+            Esta es una estimación educativa, no un cálculo oficial — y cambiar de régimen en
+            particular es una decisión real que conviene consultar directamente con Colpensiones o
+            tu fondo antes de tomarla. Para tu proyección exacta, consulta el simulador de tu fondo
+            de pensiones.
           </p>
 
           <Card className="flex flex-wrap items-center justify-between gap-3 border border-gray-200">

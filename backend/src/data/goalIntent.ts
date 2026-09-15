@@ -30,15 +30,48 @@ const LEAD_IN_PHRASES = [
   "hacia", // broad catch-all preposition, checked last so more specific phrases above win first
 ];
 
+// A goal like "cambiar de empleo" signals wanting *something* different without saying what —
+// stripped of filler it reduces to one of these bare, non-specific nouns. Treating that as a real
+// "target" used to make it a literal job-search query and a course/program match filter, which
+// returned generic irrelevant jobs and zero course matches instead of falling back to what we
+// actually know about the person (their CV/profession).
+const GENERIC_LEAD_FILLERS = [
+  "quiero ", "me gustaría ", "busco ", "buscar ", "conseguir ", "encontrar ",
+  "cambiar de ", "cambio de ", "un nuevo ", "una nueva ", "nuevo ", "nueva ",
+  "otro ", "otra ", "mi ", "el ", "la ", "un ", "una ",
+];
+
+const NON_SPECIFIC_TARGETS = new Set([
+  "empleo", "trabajo", "carrera", "profesión", "área", "sector", "puesto", "cargo", "rumbo",
+  "industria", "campo", "aire",
+]);
+
+function stripGenericFillers(text: string): string {
+  let t = text.toLowerCase().trim();
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const filler of GENERIC_LEAD_FILLERS) {
+      if (t.startsWith(filler)) {
+        t = t.slice(filler.length).trim();
+        changed = true;
+      }
+    }
+  }
+  return t;
+}
+
 /**
- * Extracts a job-search-worthy target from a change-intent goal. Tries the real profession
- * taxonomy first (detectProfession), matching how professions are detected everywhere else in the
- * app; only falls back to stripping known lead-in phrases (then, worst case, the raw goal text)
- * when nothing in the taxonomy matches — so an unusual goal still degrades gracefully into
- * *something* searchable rather than losing the person's stated intent entirely.
+ * Extracts a job-search-worthy target from a change-intent goal, or null when the goal only
+ * signals *that* the person wants something different without saying what — callers fall back to
+ * the person's real profession/CV in that case instead of searching for a non-specific phrase like
+ * "cambiar de empleo" as if it were a job title. Tries the real profession taxonomy first
+ * (detectProfession), matching how professions are detected everywhere else in the app; only falls
+ * back to stripping known lead-in phrases when nothing in the taxonomy matches.
  */
-export function extractGoalTarget(goal: string): string {
+export function extractGoalTarget(goal: string): string | null {
   const trimmed = goal.trim();
+  if (!trimmed) return null;
   const profession = detectProfession(trimmed);
   if (profession.id !== "general") return profession.label;
 
@@ -51,5 +84,7 @@ export function extractGoalTarget(goal: string): string {
     if (idx !== -1 && idx + phrase.length > cutEnd) cutEnd = idx + phrase.length;
   }
   const stripped = cutEnd > 0 ? trimmed.slice(cutEnd).trim() : trimmed;
-  return stripped || trimmed;
+  const normalized = stripGenericFillers(stripped);
+  if (!normalized || NON_SPECIFIC_TARGETS.has(normalized)) return null;
+  return stripped;
 }

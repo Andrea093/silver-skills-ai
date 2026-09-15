@@ -1,19 +1,14 @@
 import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { Home, Compass, TrendingUp, RefreshCw, PiggyBank, Wallet, BookOpen, ShieldCheck, LogOut, Type } from "lucide-react";
+import { Home, ShieldCheck, LogOut, Type } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { applyTextScale, getStoredTextScale, nextTextScale, TextScale } from "../lib/textScale";
+import { MODULES } from "../lib/modules";
 import { Logo } from "./Logo";
 
-const NAV_ITEMS = [
-  { to: "/dashboard", label: "Inicio", icon: Home },
-  { to: "/evaluacion", label: "Evaluación", icon: Compass },
-  { to: "/transicion", label: "Transición", icon: TrendingUp },
-  { to: "/actualizacion", label: "Actualización", icon: RefreshCw },
-  { to: "/pension", label: "Pensión", icon: PiggyBank },
-  { to: "/bienestar-financiero", label: "Bienestar Financiero", icon: Wallet },
-  { to: "/cursos", label: "Cursos", icon: BookOpen },
-];
+// Same order ModuleStepper uses (imported from the same MODULES list) — Inicio is the only entry
+// that doesn't belong to the stepper's sequence, so it's prepended here only.
+const NAV_ITEMS = [{ to: "/dashboard", label: "Inicio", icon: Home }, ...MODULES];
 
 function initials(name: string) {
   return name

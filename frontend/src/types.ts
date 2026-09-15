@@ -82,10 +82,10 @@ export interface ChatMessage {
 }
 
 export type Modality = "remote" | "hybrid" | "onsite" | "any";
-export type SeniorityLevel = "any" | "senior" | "director" | "consultant";
+export type SeniorityLevel = "any" | "intermediate" | "senior" | "director" | "consultant";
 
 export type PensionRegime = "rpm" | "rais" | "unknown";
-export type PensionScenario = "same" | "formalize" | "change_sector" | "voluntary_contributions";
+export type PensionScenario = "same" | "formalize" | "change_regime" | "voluntary_contributions";
 
 export interface PensionInputPayload {
   age: number;
@@ -93,7 +93,7 @@ export interface PensionInputPayload {
   yearsWorkedEstimate?: number;
   currentIncome: number;
   regime: PensionRegime;
-  scenario: PensionScenario;
+  voluntaryMonthlyAmount?: number;
 }
 
 export interface PensionAmount {
@@ -102,13 +102,20 @@ export interface PensionAmount {
   high: number;
 }
 
+export interface ScenarioProjection {
+  scenario: PensionScenario;
+  label: string;
+  amount: PensionAmount;
+  deltaPct: number;
+  explanation: string;
+}
+
 export interface PensionProjectionResult {
   weeksContributedUsed: number;
   baseline: PensionAmount;
-  scenario: PensionAmount;
-  scenarioDeltaPct: number;
-  recommendation: string;
-  scenarioHint: string;
+  scenarios: ScenarioProjection[];
+  recommendedScenario: PensionScenario;
+  recommendationRationale: string;
   incomeIncreaseForTenPctGain: number;
 }
 

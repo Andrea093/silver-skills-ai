@@ -18,6 +18,49 @@ export function buildProviderSearchLink(provider: string, topic: string): string
   return `https://www.google.com/search?q=${encodeURIComponent(`${provider} curso ${topic}`)}`;
 }
 
+// A plain substring check misses common abbreviations people actually search with — "IA" (or the
+// full "Inteligencia Artificial", which is what gets passed in from the recommended-skills cards)
+// doesn't literally appear inside a tag like "IA Generativa" as a substring match either way once
+// case is normalized, and "Gestión Remota" doesn't literally appear in "Trabajo Remoto e Híbrido"
+// even though they're clearly the same topic. This expands a search term with its known synonyms
+// before matching, instead of trying to be clever with fuzzy/partial word matching that would just
+// as easily produce false positives.
+const SEARCH_ALIASES: Record<string, string[]> = {
+  "inteligencia artificial": ["ia", "ai", "ia generativa", "chatgpt", "generative ai"],
+  ia: ["inteligencia artificial", "ai"],
+  "gestión remota": ["trabajo remoto", "equipos remotos", "liderazgo remoto", "home office", "híbrido"],
+  "trabajo remoto": ["gestión remota", "home office", "híbrido"],
+  "análisis de datos": ["data analytics", "datos", "excel"],
+  "marketing digital": ["marketing", "redes sociales", "seo"],
+};
+
+function expandSearchTerms(query: string): string[] {
+  const q = query.toLowerCase().trim();
+  return [q, ...(SEARCH_ALIASES[q] || [])];
+}
+
+// A short single-word term like "ia" as a plain substring check matches inside completely
+// unrelated words ("Inteligencia Emocional", "Especialización" both contain "ia") — same problem
+// professionProfiles.ts's matchesKeyword solves the same way: word-boundary match for a single
+// word, plain substring for a multi-word phrase (a phrase is specific enough that false positives
+// there are a non-issue).
+function matchesTerm(haystack: string, term: string): boolean {
+  if (/\s/.test(term)) return haystack.includes(term);
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b${escaped}\\b`, "i").test(haystack);
+}
+
+function matchesSearch(c: { title: string; provider: string; tags: string }, terms: string[]): boolean {
+  // Deliberately excludes `category` — categories here are coarse umbrellas (e.g. "IA y
+  // Tecnología" covers everything from prompt engineering to a plain Excel/data-analytics course),
+  // so matching on it made an "Inteligencia Artificial" search pull in unrelated courses that just
+  // happen to share the same broad category. The category filter buttons already cover browsing by
+  // category; a text search should match what a course is actually *about* (title/provider/tags).
+  const tags: string[] = JSON.parse(c.tags);
+  const haystack = `${c.title} ${c.provider} ${tags.join(" ")}`.toLowerCase();
+  return terms.some((term) => matchesTerm(haystack, term));
+}
+
 export async function listCourses(params: {
   category?: string;
   search?: string;
@@ -28,22 +71,42 @@ export async function listCourses(params: {
   const all = await prisma.course.findMany({ orderBy: [{ featured: "desc" }, { rating: "desc" }] });
 
   const personalize = Boolean(recommendedSkillNames && recommendedSkillNames.length > 0);
-  const recommended = (recommendedSkillNames || []).map((s) => s.toLowerCase());
+  // Each recommended skill gets the same alias expansion as a manual search — otherwise a
+  // profession's recommended skill ("Gestión Remota") never lights up the "recomendado para ti"
+  // badge on a course tagged with its real-world synonym ("Trabajo Remoto e Híbrido").
+  const recommendedTermSets = (recommendedSkillNames || []).map((s) => expandSearchTerms(s));
   const wantsChange = goalContext?.intent === "change";
   const goalTargetWords = (goalContext?.target || "").toLowerCase();
+  const searchTerms = search ? expandSearchTerms(search) : null;
 
-  return all
-    .filter((c) => !category || category === "Todos" || c.category === category)
-    .filter((c) => {
-      if (!search) return true;
-      const q = search.toLowerCase();
-      const tags: string[] = JSON.parse(c.tags);
-      return (
-        c.title.toLowerCase().includes(q) ||
-        c.provider.toLowerCase().includes(q) ||
-        tags.some((t) => t.toLowerCase().includes(q))
-      );
-    })
+  const categoryFiltered = all.filter((c) => !category || category === "Todos" || c.category === category);
+  const searched = searchTerms ? categoryFiltered.filter((c) => matchesSearch(c, searchTerms)) : categoryFiltered;
+
+  // A real curated match beats a generic provider search link — but zero curated matches (a topic
+  // the seed catalog genuinely doesn't cover yet, like a niche recommended skill) used to just show
+  // "no encontramos cursos" and stop there. Falling back to real search links (same pattern
+  // searchCoursesByTopic already uses for the Mentor) means a search never dead-ends.
+  if (search && searched.length === 0) {
+    return Object.keys(PROVIDER_SEARCH_BUILDERS).map((provider) => ({
+      id: `search-link-${provider}`,
+      title: `Buscar "${search}" en ${provider}`,
+      provider,
+      url: buildProviderSearchLink(provider, search),
+      isFree: null,
+      priceLabel: "Ver en el sitio",
+      durationWeeks: null,
+      level: null,
+      rating: null,
+      studentsCount: null,
+      tags: [search],
+      category: category || "",
+      featured: false,
+      programType: "course",
+      isSearchLink: true,
+    }));
+  }
+
+  return searched
     .map((c) => {
       const tags: string[] = JSON.parse(c.tags);
       const matchesGoalTarget =
@@ -60,7 +123,7 @@ export async function listCourses(params: {
         c.programType !== "course" && matchesGoalTarget
           ? true
           : personalize
-          ? recommended.some((skill) => tags.some((t) => t.toLowerCase().includes(skill)) || c.category.toLowerCase().includes(skill))
+          ? recommendedTermSets.some((terms) => matchesSearch(c, terms))
           : c.featured;
       return { ...c, tags, featured };
     })
@@ -68,17 +131,10 @@ export async function listCourses(params: {
 }
 
 export async function searchCoursesByTopic(topic: string) {
-  const q = topic.toLowerCase();
+  const terms = expandSearchTerms(topic);
   const all = await prisma.course.findMany();
   const matches = all
-    .filter((c) => {
-      const tags: string[] = JSON.parse(c.tags);
-      return (
-        c.title.toLowerCase().includes(q) ||
-        c.category.toLowerCase().includes(q) ||
-        tags.some((t) => t.toLowerCase().includes(q))
-      );
-    })
+    .filter((c) => matchesSearch(c, terms))
     .slice(0, 5)
     .map((c) => ({ ...c, tags: JSON.parse(c.tags), isSearchLink: false }));
 

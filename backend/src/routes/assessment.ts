@@ -83,8 +83,9 @@ assessmentRouter.post("/", requireAuth, async (req, res) => {
     interests: submitted.interests,
     goal: submitted.goal,
     weeklyHours: submitted.weeklyHours,
+    professionId: profile.id,
   };
-  const computed = computeAssessment(answers);
+  const computed = computeAssessment(answers, profile.id);
 
   let summary = heuristicSummary(answers, computed);
   if (isMentorAgentEnabled()) {
@@ -142,6 +143,11 @@ assessmentRouter.get("/latest", requireAuth, async (req, res) => {
 
   const user = await prisma.user.findUnique({ where: { id: req.userId! } });
   const resultSkills = JSON.parse(latest.resultSkills);
+  const storedAnswers = JSON.parse(latest.answers || "{}") as Partial<AssessmentAnswers>;
+  // Older rows (saved before recommendations became profession-aware) won't have professionId
+  // stored — fall back to re-detecting it from the same experience text rather than silently
+  // reverting to the generic dataset for every pre-existing account.
+  const professionId = storedAnswers.professionId || detectProfession(storedAnswers.experienceText || "").id;
   res.json({
     resultSkills,
     automationRisk: latest.automationRisk,
@@ -149,6 +155,6 @@ assessmentRouter.get("/latest", requireAuth, async (req, res) => {
     summary: latest.summary,
     createdAt: latest.createdAt,
     employabilityScore: user?.employabilityScore ?? 50,
-    recommendedSkills: computeRecommendedSkills(resultSkills),
+    recommendedSkills: computeRecommendedSkills(resultSkills, professionId),
   });
 });

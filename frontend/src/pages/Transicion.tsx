@@ -41,6 +41,7 @@ const MODALITIES: { value: Modality; label: string }[] = [
 
 const SENIORITY_LEVELS: { value: SeniorityLevel; label: string }[] = [
   { value: "any", label: "Cualquiera" },
+  { value: "intermediate", label: "Intermedio / Profesional" },
   { value: "senior", label: "Senior / Experimentado" },
   { value: "director", label: "Directivo / Gerencial" },
   { value: "consultant", label: "Consultoría / Asesoría" },
@@ -50,6 +51,7 @@ const SENIORITY_LEVELS: { value: SeniorityLevel; label: string }[] = [
 // actually targets, which is what people found confusing.
 const SENIORITY_HELP: Record<SeniorityLevel, string> = {
   any: "Sin filtrar por nivel — mezcla vacantes de todos los niveles.",
+  intermediate: "Roles profesionales estándar — ni de práctica/entrada ni con un nivel senior o de liderazgo destacado en la publicación.",
   senior: "Roles que piden experiencia sólida (8+ años) o mencionan un perfil senior/especialista.",
   director: "Roles de liderazgo: director, gerente, jefe de área o head of.",
   consultant: "Roles de consultoría o asesoría externa, no cargos internos de planta.",

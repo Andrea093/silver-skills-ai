@@ -449,12 +449,6 @@ export function Evaluacion() {
           )}
         </Card>
 
-        <div className="flex justify-end gap-3">
-          <Button onClick={() => navigate("/transicion")} icon={ArrowRight} iconPosition="right">
-            Ver Mapa de Transición Laboral
-          </Button>
-        </div>
-
         <ModuleStepper current="evaluacion" />
       </div>
     );

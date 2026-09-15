@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/requireAuth";
-import { computePensionProjection, Regime, PensionScenario } from "../services/pensionEstimate";
+import { computePensionProjection, Regime } from "../services/pensionEstimate";
 
 export const pensionRouter = Router();
 
@@ -12,7 +12,7 @@ const submitSchema = z.object({
   yearsWorkedEstimate: z.number().int().min(0).max(80).optional(),
   currentIncome: z.number().min(0),
   regime: z.enum(["rpm", "rais", "unknown"]),
-  scenario: z.enum(["same", "formalize", "change_sector", "voluntary_contributions"]),
+  voluntaryMonthlyAmount: z.number().min(0).optional(),
 });
 
 pensionRouter.post("/", requireAuth, async (req, res) => {
@@ -33,7 +33,10 @@ pensionRouter.post("/", requireAuth, async (req, res) => {
       yearsWorkedEstimate: input.yearsWorkedEstimate,
       currentIncome: input.currentIncome,
       regime: input.regime,
-      scenario: input.scenario,
+      voluntaryMonthlyAmount: input.voluntaryMonthlyAmount,
+      // Every scenario is computed and shown at once now — this just records which one the
+      // projection recommended at save time, for reference on a returning visit.
+      scenario: projection.recommendedScenario,
     },
   });
 
@@ -53,7 +56,7 @@ pensionRouter.get("/latest", requireAuth, async (req, res) => {
     yearsWorkedEstimate: latest.yearsWorkedEstimate ?? undefined,
     currentIncome: latest.currentIncome,
     regime: latest.regime as Regime,
-    scenario: latest.scenario as PensionScenario,
+    voluntaryMonthlyAmount: latest.voluntaryMonthlyAmount ?? undefined,
   };
   const projection = computePensionProjection(input);
 

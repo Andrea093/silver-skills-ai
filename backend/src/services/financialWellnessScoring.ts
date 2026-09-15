@@ -43,23 +43,35 @@ function formatMonths(months: number): string {
   return months === 1 ? "1 mes" : `${months} meses`;
 }
 
+function formatCurrency(n: number): string {
+  return `$${Math.round(n).toLocaleString("es-CO")}`;
+}
+
 export function computeFinancialRecommendation(input: FinancialWellnessInput): FinancialRecommendation {
   const { monthlyIncome, monthlyExpenses, emergencyFund } = input;
   const debts = input.debts || [];
   const hasExpenses = monthlyExpenses !== undefined && monthlyExpenses > 0;
   const hasEmergencyFund = emergencyFund !== undefined;
 
-  // Only income given — no expenses, debts, or savings data at all. Honest general guidance
-  // instead of pretending to a precision the data doesn't support.
+  // Only income given — no expenses, debts, or savings data at all. Still real numbers derived
+  // from their actual income (not a rewording of the same generic percentages for everyone), even
+  // though the recommendation can't be as specific as with fuller data — an honest disclaimer
+  // covers that gap instead of hiding it behind pure abstraction.
   if (!hasExpenses && debts.length === 0 && !hasEmergencyFund) {
+    const needs = monthlyIncome * 0.5;
+    const wants = monthlyIncome * 0.3;
+    const savingsOrDebt = monthlyIncome * 0.2;
+    const emergencyLow = monthlyIncome * 0.5 * EMERGENCY_FUND_MIN_MONTHS;
+    const emergencyHigh = monthlyIncome * 0.5 * EMERGENCY_FUND_FULL_MONTHS;
     return {
       priority: "general",
-      rationale:
-        "Con solo tu ingreso no podemos dar una recomendación específica a tu situación real — agrega tus gastos, deudas o ahorros para una respuesta más precisa.",
+      rationale: `Con un ingreso mensual de ${formatCurrency(monthlyIncome)}, y sin más datos tuyos todavía, esto es lo que la regla 50/30/20 sugiere como punto de partida — agrega tus gastos, deudas o ahorros para una recomendación específica a tu situación real, no solo a tu ingreso.`,
       steps: [
-        "Regla general de referencia (50/30/20): aproximadamente 50% del ingreso a necesidades básicas, 30% a gastos personales, y 20% a ahorro o pago de deudas.",
+        `Necesidades básicas (~50%): hasta ${formatCurrency(needs)}/mes.`,
+        `Gastos personales (~30%): hasta ${formatCurrency(wants)}/mes.`,
+        `Ahorro o pago de deudas (~20%): ${formatCurrency(savingsOrDebt)}/mes.`,
+        `Si no tienes fondo de emergencia, apunta primero a acumular entre ${formatCurrency(emergencyLow)} y ${formatCurrency(emergencyHigh)} (3-6 meses de gastos estimados) antes de invertir.`,
         "Si tienes deudas con tasas de interés altas (tarjetas de crédito, créditos de consumo), priorízalas antes de ahorrar o invertir.",
-        "Si no tienes un fondo de emergencia, el primer paso suele ser ahorrar entre 1 y 3 meses de gastos básicos antes de invertir.",
       ],
     };
   }

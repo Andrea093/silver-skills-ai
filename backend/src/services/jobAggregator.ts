@@ -20,7 +20,7 @@ export type Modality = "remote" | "hybrid" | "onsite" | "any";
 // level, so a 45+ candidate with 20 years of experience ends up scrolling past — and effectively
 // competing for — entry-level and junior postings meant for someone starting out. This lets them
 // filter down to the level their experience actually targets.
-export type SeniorityLevel = "any" | "senior" | "director" | "consultant";
+export type SeniorityLevel = "any" | "intermediate" | "senior" | "director" | "consultant";
 
 export interface JobSearchOptions {
   location?: string; // free-text city, e.g. "Bogotá"
@@ -57,7 +57,7 @@ function matchesModality(text: string, modality: Modality | undefined): boolean 
 // that filtered almost everything to zero. Checking the description too (where "buscamos un perfil
 // senior con 8+ años..." actually lives) is what makes this filter find anything at all.
 const ENTRY_LEVEL_TITLE = /\bjunior\b|\bjr\.?\b|trainee|practicante|pr[aá]ctica|becari[oa]|aprendiz|sin\s+experiencia|reci[eé]n\s+egresad[oa]/i;
-const SENIORITY_SIGNAL: Record<Exclude<SeniorityLevel, "any">, RegExp> = {
+const SENIORITY_SIGNAL: Record<Exclude<SeniorityLevel, "any" | "intermediate">, RegExp> = {
   senior: /\bsenior\b|\bs[eé]nior\b|\bsr\.?\b|especialista|experimentad[oa]|(\b[89]\b|\b1[0-9]\b)\s*(\+\s*)?años/i,
   director: /director|gerente|gerencial|jefe\s+de|head\s+of|manager|l[ií]der\s+de|liderazgo\s+de\s+equipo/i,
   consultant: /consultor|consultor[ií]a|asesor(?![ií]a\s+comercial)/i,
@@ -66,6 +66,13 @@ const SENIORITY_SIGNAL: Record<Exclude<SeniorityLevel, "any">, RegExp> = {
 function matchesSeniority(title: string, description: string | undefined, seniority: SeniorityLevel | undefined): boolean {
   if (!seniority || seniority === "any") return true;
   if (ENTRY_LEVEL_TITLE.test(title)) return false;
+  // "Intermedio" isn't a single keyword to look for — most real mid-level postings just don't
+  // call out a level at all. It's everything left once entry-level is excluded and the posting
+  // doesn't specifically call itself senior/director/consultant.
+  if (seniority === "intermediate") {
+    const text = `${title} ${description || ""}`;
+    return !SENIORITY_SIGNAL.senior.test(text) && !SENIORITY_SIGNAL.director.test(text) && !SENIORITY_SIGNAL.consultant.test(text);
+  }
   const signal = SENIORITY_SIGNAL[seniority];
   return signal.test(title) || signal.test(description || "");
 }
@@ -583,11 +590,13 @@ const LINKEDIN_WORK_TYPE: Record<Exclude<Modality, "any">, string> = {
 // LinkedIn's real, documented seniority filter param (f_E): 4=Mid-Senior level, 5=Director.
 // "consultant" isn't a seniority level LinkedIn models this way, so it only augments the keywords.
 const LINKEDIN_SENIORITY: Partial<Record<Exclude<SeniorityLevel, "any">, string>> = {
+  intermediate: "3", // LinkedIn f_E=3: Associate
   senior: "4",
   director: "5",
 };
 
 const SENIORITY_QUERY_WORD: Record<Exclude<SeniorityLevel, "any">, string> = {
+  intermediate: " profesional",
   senior: " senior",
   director: " director",
   consultant: " consultor",
