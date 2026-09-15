@@ -5,6 +5,9 @@ basada en el prototipo de Figma "Silver Skills AI". Evalúa habilidades, muestra
 automatización vs. potencial de adaptación, recomienda cursos y rutas de aprendizaje reales, sugiere
 vacantes reales, y ofrece un Mentor IA conversacional.
 
+> Ver también [`CLAUDE.md`](./CLAUDE.md) — notas internas (gotchas de despliegue, decisiones de
+> arquitectura, y qué se cambió recientemente) para retomar el trabajo en otra máquina/sesión.
+
 ## Estructura
 
 ```
@@ -18,8 +21,11 @@ frontend/   React + Vite + TypeScript + Tailwind + Recharts
 - npm
 
 No necesitas Docker ni instalar PostgreSQL: el backend usa SQLite por defecto (archivo local
-`backend/prisma/dev.db`). Para producción, cambia el `provider` en `backend/prisma/schema.prisma`
-a `"postgresql"` y actualiza `DATABASE_URL` — no hace falta tocar el resto del código.
+`backend/prisma/dev.db`). Para producción existe un schema separado ya listo,
+`backend/prisma/schema.production.prisma` (Postgres) — no hay que editar nada a mano, solo seguir
+la sección "Desplegar en Render" más abajo. **Importante:** si cambias un modelo, edita los dos
+archivos de schema (el de SQLite y el de producción) — ver `CLAUDE.md` para el detalle de por qué y
+el paso manual que hay que correr después de cada cambio de esquema en producción.
 
 ## Puesta en marcha
 
@@ -133,31 +139,46 @@ persona.
 
 ## Desplegar en Render (URL pública para que otras personas la prueben)
 
-El repo incluye `render.yaml` (Blueprint) que crea 3 servicios: backend (Node), base de datos
-(Postgres gratis) y frontend (sitio estático). Pasos que **debes hacer tú** (no puedo crear cuentas
-de terceros en tu nombre):
+El repo incluye `render.yaml` (Blueprint) que crea **2 servicios**: backend (Node) y frontend
+(sitio estático). **La base de datos NO la crea Render** — es un Postgres externo gratis de
+[Neon](https://neon.tech) (`*.neon.tech`), conectado pegando la cadena de conexión a mano. Pasos
+que **debes hacer tú** (no puedo crear cuentas de terceros en tu nombre):
 
-1. Entra a [render.com](https://render.com) y crea una cuenta gratis (botón "Sign up with GitHub").
-2. En el dashboard: **New +** → **Blueprint** → selecciona el repo `silver-skills-ai`.
-3. Render detecta `render.yaml` y muestra los 3 servicios a crear. Antes de confirmar, en el
-   servicio `silver-skills-backend` agrega estas variables de entorno opcionales (pestaña
-   "Environment" del servicio, después de creado, si no aparece el campo antes):
-   - `ANTHROPIC_API_KEY` — tu key (ver arriba cómo obtenerla). Sin ella, el Mentor IA y el
+1. Crea una base gratis en [neon.tech](https://neon.tech) (o Supabase, o cualquier Postgres
+   accesible desde internet) y copia su cadena de conexión (`postgresql://usuario:contraseña@host/basededatos?sslmode=require`).
+2. Entra a [render.com](https://render.com) y crea una cuenta gratis (botón "Sign up with GitHub").
+3. En el dashboard: **New +** → **Blueprint** → selecciona el repo `silver-skills-ai`.
+4. Render detecta `render.yaml` y muestra los 2 servicios a crear. Antes o después de confirmar, en
+   el servicio `silver-skills-backend` → pestaña **Environment**, agrega:
+   - `DATABASE_URL` — la cadena de conexión de Neon del paso 1. **Obligatoria** (el backend no
+     arranca sin ella).
+   - `ANTHROPIC_API_KEY` — opcional, tu key (ver arriba cómo obtenerla). Sin ella, el Mentor IA y el
      generador de CV funcionan en modo asistido/heurístico.
-   - `ADZUNA_APP_ID` y `ADZUNA_APP_KEY` — opcionales, para más vacantes reales de LATAM.
-4. Click "Apply" / "Create". El primer build tarda unos minutos (instala dependencias, genera
-   Prisma contra Postgres, siembra datos, compila).
-5. Cuando termine, abre la URL del servicio `silver-skills-frontend`
+   - `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` / `JOOBLE_API_KEY` — opcionales, para más vacantes reales
+     fuera de Colombia (sin ellas, la cobertura completa de vacantes solo está garantizada para
+     Colombia).
+5. Click "Apply" / "Create". El primer build tarda unos minutos (instala dependencias, genera
+   Prisma, compila) — **pero no crea las tablas todavía**, ver el paso 6.
+6. La primera vez (y cada vez que un cambio toque `backend/prisma/schema.production.prisma`), corre
+   manualmente, desde tu máquina, con la misma cadena de conexión del paso 1:
+   ```bash
+   cd backend
+   DATABASE_URL="<tu cadena de Neon>" npm run prisma:push:prod
+   ```
+   Esto sincroniza las tablas contra la base real — sin este paso, el backend desplegado responde
+   con error 500 en cualquier endpoint que toque una tabla/columna que aún no existe ahí. Ver
+   `CLAUDE.md` para más detalle de por qué es un paso manual y no parte del build automático.
+7. Cuando el deploy termine, abre la URL del servicio `silver-skills-frontend`
    (algo como `https://silver-skills-frontend.onrender.com`) — esa es la URL pública para compartir.
-6. Inicia sesión como admin con `admin@silverskills.ai` / `SilverSkills2026!` (o el valor que
+8. Inicia sesión como admin con `admin@silverskills.ai` / `SilverSkills2026!` (o el valor que
    hayas puesto en `ADMIN_DEFAULT_PASSWORD`) y cámbiala desde `/admin` si quieres — ver la sección
    de arriba sobre `ADMIN_PASSWORD_LOCKED` si no quieres que los redeploys la reestablezcan.
 
 **Limitaciones del plan gratuito de Render** (aceptables para un prototipo, no para producción real):
 - El backend "se duerme" tras ~15 min sin tráfico; la primera visita tras eso tarda ~30-60s en
   responder mientras despierta.
-- La base Postgres gratuita expira a los 30 días. Cuando eso pase, Render avisa por correo; hay que
-  recrearla (New + → PostgreSQL) o pasar el plan a uno pago para que persista indefinidamente.
+- Revisa también los límites del plan gratuito de tu proveedor de Postgres (Neon/Supabase) — suelen
+  pausar o expirar la base tras un período de inactividad o un plazo fijo.
 - Si al crear el Blueprint alguno de los dos nombres de servicio (`silver-skills-backend` /
   `silver-skills-frontend`) ya está tomado, Render le agrega un sufijo a la URL — en ese caso edita
   `render.yaml` (el `routes` del frontend y el `CLIENT_ORIGIN` del backend) para que apunten a las

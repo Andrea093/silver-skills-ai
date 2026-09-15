@@ -11,8 +11,11 @@
 # Render's static-site path rewrite to another Render service proved unreliable in testing.
 #
 # Database: Render's free Postgres plan auto-expires 90 days after creation (and cannot be
-# resumed without upgrading to a paid instance), so the database is hosted on Supabase's free
-# tier instead — set DATABASE_URL manually in the Render dashboard (see comment below).
+# resumed without upgrading to a paid instance), so the database is hosted on an external free
+# Postgres instead (currently Neon, *.neon.tech) — set DATABASE_URL manually in the Render
+# dashboard (see comment below). This is NOT auto-migrated on deploy: after any change to
+# backend/prisma/schema.production.prisma, run `npm run prisma:push:prod` manually with the real
+# DATABASE_URL — see CLAUDE.md at the repo root for why.
 
 services:
   - name: silver-skills-backend
