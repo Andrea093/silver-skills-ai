@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { RefreshCw, CheckCircle2, ExternalLink, BookMarked, Sparkles, FileText } from "lucide-react";
+import { Link } from "react-router-dom";
+import { RefreshCw, CheckCircle2, ExternalLink, BookMarked, Sparkles } from "lucide-react";
 import { api } from "../lib/api";
 import { Card, Badge, Button } from "../components/ui";
 import { CvAnalysisResult } from "../types";
 import { ModuleStepper } from "../components/ModuleStepper";
+import { GenerateCvButton } from "../components/GenerateCvButton";
 
 interface SkillResource {
   title: string;
@@ -124,7 +125,6 @@ function GapsCard({
 }
 
 export function Actualizacion() {
-  const navigate = useNavigate();
   const [data, setData] = useState<SkillsUpdateData | null>(null);
   const [cvResult, setCvResult] = useState<CvAnalysisResult | null>(null);
 
@@ -182,13 +182,7 @@ export function Actualizacion() {
                 vacante real específica, sin volver a subirlo.
               </p>
             </div>
-            <Button
-              variant="secondary"
-              icon={FileText}
-              onClick={() => navigate("/transicion", { state: { cvResult } })}
-            >
-              Generar mi CV
-            </Button>
+            <GenerateCvButton cvResult={cvResult} />
           </div>
         </Card>
       )}

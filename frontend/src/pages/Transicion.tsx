@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { Clock, TrendingUp, Sparkles, ExternalLink, Bookmark, Check, FileSearch, Search, Info, Target } from "lucide-react";
-import { api, API_BASE } from "../lib/api";
+import { api } from "../lib/api";
 import { Card, ProgressBar, Badge, Button } from "../components/ui";
 import { NormalizedJob, PortalSearchLink, CvAnalysisResult, Modality, SeniorityLevel } from "../types";
 import { ModuleStepper } from "../components/ModuleStepper";
+import { generateAndDownloadCv } from "../lib/generateCv";
 
 interface TransitionData {
   hasProfile: boolean;
@@ -157,25 +158,7 @@ export function Transicion() {
         setGenerateError("Selecciona una vacante para adaptar tu CV");
         return;
       }
-      const res = await fetch(`${API_BASE}/cv/generate`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ analysisId: cvResult.id, mode: generateMode, format: generateFormat, jobId: job }),
-      });
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.error || "Error al generar el CV");
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `CV_${generateMode === "vacancy" ? (job?.title || "vacante") : "ATS"}.${generateFormat}`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      await generateAndDownloadCv({ analysisId: cvResult.id, mode: generateMode, format: generateFormat, job });
     } catch (err: any) {
       setGenerateError(err.message || "Error al generar el CV");
     } finally {

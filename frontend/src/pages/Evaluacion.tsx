@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { ArrowLeft, ArrowRight, Sparkles, TrendingUp, FileText, RefreshCw, AlertCircle, ClipboardList } from "lucide-react";
 import { api } from "../lib/api";
@@ -10,6 +10,7 @@ import { useAuth } from "../context/AuthContext";
 import { CvAnalysisResult } from "../types";
 import { skillTier, sortSkillsByLevelDesc } from "../lib/skillTier";
 import { ModuleStepper } from "../components/ModuleStepper";
+import { GenerateCvButton } from "../components/GenerateCvButton";
 
 interface InterestArea {
   label: string;
@@ -85,7 +86,6 @@ function loadDraft(userId: string): WizardDraft | null {
 
 export function Evaluacion() {
   const { user, refresh } = useAuth();
-  const navigate = useNavigate();
   const [steps, setSteps] = useState<WizardStep[]>([]);
   const draft = user ? loadDraft(user.id) : null;
   const [stepIndex, setStepIndex] = useState(draft?.stepIndex ?? 0);
@@ -433,14 +433,13 @@ export function Evaluacion() {
                   : "Sube tu CV abajo, en la sección de esta misma pantalla, para desbloquear el generador."}
               </p>
             </div>
-            <Button
-              variant="secondary"
-              icon={FileText}
-              onClick={() => navigate("/transicion", cvResult ? { state: { cvResult } } : undefined)}
-              disabled={!cvResult}
-            >
-              {cvResult ? "Generar mi CV" : "Sube tu CV primero"}
-            </Button>
+            {cvResult ? (
+              <GenerateCvButton cvResult={cvResult} />
+            ) : (
+              <Button variant="secondary" icon={FileText} disabled>
+                Sube tu CV primero
+              </Button>
+            )}
           </div>
           {!cvResult && (
             <div className="mt-4 border-t border-accent-200 pt-4">

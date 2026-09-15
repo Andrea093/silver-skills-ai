@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { TrendingUp, Award, Briefcase, Compass, Sparkles, FileText } from "lucide-react";
+import { TrendingUp, Award, Briefcase, Compass, Sparkles } from "lucide-react";
 import { api } from "../lib/api";
 import { Card, ProgressBar, Badge, Button } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
 import { CvAnalysisResult } from "../types";
 import { skillTier, sortSkillsByLevelDesc } from "../lib/skillTier";
+import { GenerateCvButton } from "../components/GenerateCvButton";
 
 interface DashboardData {
   name: string;
@@ -21,7 +22,6 @@ const PIE_COLORS = ["#365e8c", "#d7e0ec"];
 
 export function Dashboard() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [cvResult, setCvResult] = useState<CvAnalysisResult | null>(null);
@@ -87,13 +87,7 @@ export function Dashboard() {
                 vacante real específica, sin volver a subirlo.
               </p>
             </div>
-            <Button
-              variant="secondary"
-              icon={FileText}
-              onClick={() => navigate("/transicion", { state: { cvResult } })}
-            >
-              Generar mi CV
-            </Button>
+            <GenerateCvButton cvResult={cvResult} />
           </div>
         </Card>
       )}
