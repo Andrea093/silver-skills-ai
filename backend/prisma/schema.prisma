@@ -145,8 +145,9 @@ model PensionInput {
   regime              String // "rpm" | "rais" | "unknown"
   // Kept for reference — now set to whichever scenario the projection recommended, not a value
   // the user picked (the scenario selector was replaced with computing every lever at once).
-  scenario            String // "same" | "formalize" | "change_regime" | "voluntary_contributions"
+  scenario            String // "formalize" | "change_regime" | "voluntary_contributions"
   voluntaryMonthlyAmount Float? // real amount the person said they could contribute, if given
+  isCurrentlyFormal   Boolean? // whether they already cotizan regularmente today — gates "Formalizarte"
   createdAt           DateTime @default(now())
 
   @@index([userId])

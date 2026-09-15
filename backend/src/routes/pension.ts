@@ -13,6 +13,7 @@ const submitSchema = z.object({
   currentIncome: z.number().min(0),
   regime: z.enum(["rpm", "rais", "unknown"]),
   voluntaryMonthlyAmount: z.number().min(0).optional(),
+  isCurrentlyFormal: z.boolean().optional(),
 });
 
 pensionRouter.post("/", requireAuth, async (req, res) => {
@@ -34,6 +35,7 @@ pensionRouter.post("/", requireAuth, async (req, res) => {
       currentIncome: input.currentIncome,
       regime: input.regime,
       voluntaryMonthlyAmount: input.voluntaryMonthlyAmount,
+      isCurrentlyFormal: input.isCurrentlyFormal,
       // Every scenario is computed and shown at once now — this just records which one the
       // projection recommended at save time, for reference on a returning visit.
       scenario: projection.recommendedScenario,
@@ -57,6 +59,7 @@ pensionRouter.get("/latest", requireAuth, async (req, res) => {
     currentIncome: latest.currentIncome,
     regime: latest.regime as Regime,
     voluntaryMonthlyAmount: latest.voluntaryMonthlyAmount ?? undefined,
+    isCurrentlyFormal: latest.isCurrentlyFormal ?? undefined,
   };
   const projection = computePensionProjection(input);
 

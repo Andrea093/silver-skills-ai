@@ -87,19 +87,27 @@ export function computeFinancialRecommendation(input: FinancialWellnessInput): F
 
   if (highInterestDebts.length > 0) {
     const worst = highInterestDebts[0];
+    // Debt avalanche wins regardless of the emergency-fund amount (paying off a guaranteed 28%
+    // "return" beats sitting on cash) — but that doesn't mean the fund amount is irrelevant to
+    // show: without naming it explicitly, changing that field produced no visible difference in
+    // the output, which read as the recommendation ignoring the number entirely.
+    const emergencyFundLine =
+      monthsCovered === undefined
+        ? "No nos diste tu fondo de emergencia actual — con deuda de interés alto pendiente, no hace falta completarlo antes de atacarla, pero sí vale tener claro cuánto tienes."
+        : monthsCovered < 1
+        ? `Tu fondo de emergencia actual (${formatCurrency(emergencyFund || 0)}) cubre solo ${formatMonths(monthsCovered)} de gastos — mientras pagas la deuda, intenta no bajarlo de ahí para no volver a endeudarte ante un imprevisto.`
+        : `Tu fondo de emergencia actual (${formatCurrency(emergencyFund || 0)}) ya cubre ${formatMonths(monthsCovered)} de gastos — es un colchón razonable, así que tiene sentido enfocar el excedente en la deuda antes que en seguir creciéndolo.`;
     return {
       priority: "debt",
       highestInterestDebt: worst,
       emergencyFundMonthsCovered: monthsCovered,
-      rationale: `Tienes deuda con una tasa de interés alta (${worst.name}, ${worst.interestRatePct}% anual). Pagarla primero equivale a una inversión garantizada a esa misma tasa — casi ninguna inversión ofrece ese retorno de forma segura, por eso el método de "avalancha de deudas" prioriza pagar primero la deuda más cara.`,
+      rationale: `Tienes deuda con una tasa de interés alta (${worst.name}: ${formatCurrency(worst.amount)} al ${worst.interestRatePct}% anual). Pagarla primero equivale a una inversión garantizada a esa misma tasa — casi ninguna inversión ofrece ese retorno de forma segura, por eso el método de "avalancha de deudas" prioriza pagar primero la deuda más cara.`,
       steps: [
         `Destina tu excedente mensual a pagar "${worst.name}" lo más rápido posible, mantén solo los pagos mínimos en tus otras deudas.`,
         ...(highInterestDebts.length > 1
           ? ["Una vez pagada esa deuda, repite el proceso con la siguiente de mayor tasa de interés."]
           : []),
-        ...(monthsCovered === undefined || monthsCovered < 1
-          ? ["Mientras tanto, intenta mantener un pequeño colchón de al menos 1 mes de gastos, para no volver a endeudarte ante un imprevisto."]
-          : []),
+        emergencyFundLine,
       ],
     };
   }

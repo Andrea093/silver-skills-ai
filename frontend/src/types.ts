@@ -85,7 +85,7 @@ export type Modality = "remote" | "hybrid" | "onsite" | "any";
 export type SeniorityLevel = "any" | "intermediate" | "senior" | "director" | "consultant";
 
 export type PensionRegime = "rpm" | "rais" | "unknown";
-export type PensionScenario = "same" | "formalize" | "change_regime" | "voluntary_contributions";
+export type PensionScenario = "formalize" | "change_regime" | "voluntary_contributions";
 
 export interface PensionInputPayload {
   age: number;
@@ -94,6 +94,7 @@ export interface PensionInputPayload {
   currentIncome: number;
   regime: PensionRegime;
   voluntaryMonthlyAmount?: number;
+  isCurrentlyFormal?: boolean;
 }
 
 export interface PensionAmount {

@@ -1,5 +1,4 @@
 import { FormEvent, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { AlertCircle, ChevronDown, Info, MessageCircle, Sparkles, Wallet } from "lucide-react";
 import { api } from "../lib/api";
 import { Card, Button, Badge } from "../components/ui";
@@ -19,7 +18,6 @@ function formatCurrency(n: number) {
 }
 
 export function Pension() {
-  const navigate = useNavigate();
   const { openMentor } = useMentor();
 
   const [age, setAge] = useState("");
@@ -27,6 +25,7 @@ export function Pension() {
   const [yearsWorkedEstimate, setYearsWorkedEstimate] = useState("");
   const [currentIncome, setCurrentIncome] = useState("");
   const [regime, setRegime] = useState<PensionRegime>("unknown");
+  const [formalStatus, setFormalStatus] = useState<"unknown" | "formal" | "informal">("unknown");
   const [voluntaryMonthlyAmount, setVoluntaryMonthlyAmount] = useState("");
 
   const [result, setResult] = useState<PensionResponse | null>(null);
@@ -45,6 +44,9 @@ export function Pension() {
         setYearsWorkedEstimate(res.input.yearsWorkedEstimate ? String(res.input.yearsWorkedEstimate) : "");
         setCurrentIncome(String(res.input.currentIncome));
         setRegime(res.input.regime);
+        setFormalStatus(
+          res.input.isCurrentlyFormal === true ? "formal" : res.input.isCurrentlyFormal === false ? "informal" : "unknown"
+        );
         setVoluntaryMonthlyAmount(res.input.voluntaryMonthlyAmount ? String(res.input.voluntaryMonthlyAmount) : "");
       })
       .catch(() => {
@@ -75,6 +77,7 @@ export function Pension() {
       ...(weeksContributed ? { weeksContributed: Number(weeksContributed) } : {}),
       ...(yearsWorkedEstimate ? { yearsWorkedEstimate: Number(yearsWorkedEstimate) } : {}),
       ...(voluntaryMonthlyAmount ? { voluntaryMonthlyAmount: Number(voluntaryMonthlyAmount) } : {}),
+      ...(formalStatus !== "unknown" ? { isCurrentlyFormal: formalStatus === "formal" } : {}),
     };
 
     setSubmitting(true);
@@ -184,6 +187,26 @@ export function Pension() {
               placeholder="Ej. 2500000"
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none sm:w-64"
             />
+          </div>
+
+          <div>
+            <label htmlFor="pension-formal" className="mb-1 block text-sm font-medium text-gray-700">
+              ¿Cotizas regularmente hoy?
+            </label>
+            <select
+              id="pension-formal"
+              value={formalStatus}
+              onChange={(e) => setFormalStatus(e.target.value as "unknown" | "formal" | "informal")}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none sm:w-80"
+            >
+              <option value="unknown">No lo sé</option>
+              <option value="formal">Sí — tengo contrato formal o cotizo como independiente (PILA)</option>
+              <option value="informal">No — trabajo informal o independiente sin cotizar</option>
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              Esto decide si tiene sentido mostrarte "Formalizarte" como palanca — si ya cotizas, no
+              te aplica.
+            </p>
           </div>
 
           <div>
@@ -311,18 +334,6 @@ export function Pension() {
             de pensiones.
           </p>
 
-          <Card className="flex flex-wrap items-center justify-between gap-3 border border-gray-200">
-            <div>
-              <h2 className="font-semibold">¿Deudas, ahorro o inversión?</h2>
-              <p className="text-sm text-gray-500">
-                Además de tu pensión, revisa si conviene pagar deudas, ahorrar o invertir con tu
-                situación actual.
-              </p>
-            </div>
-            <Button variant="outline" icon={Wallet} onClick={() => navigate("/bienestar-financiero")}>
-              Ir a Bienestar Financiero
-            </Button>
-          </Card>
         </>
       )}
 

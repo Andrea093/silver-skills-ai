@@ -264,6 +264,12 @@ export function BienestarFinanciero() {
             </Badge>
           </div>
           <p className="text-sm text-brand-900">{result.recommendation.rationale}</p>
+          {result.recommendation.emergencyFundMonthsCovered !== undefined && (
+            <p className="mt-1 text-xs text-brand-700">
+              Tu fondo de emergencia cubre <strong>{result.recommendation.emergencyFundMonthsCovered}</strong>{" "}
+              {result.recommendation.emergencyFundMonthsCovered === 1 ? "mes" : "meses"} de gastos.
+            </p>
+          )}
           {result.recommendation.steps.length > 0 && (
             <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-brand-900">
               {result.recommendation.steps.map((step, i) => (
