@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { Bot, X, TrendingUp, Target, BookOpen, Lightbulb, Send, ExternalLink } from "lucide-react";
+import { X, TrendingUp, Target, BookOpen, Lightbulb, Send, ExternalLink } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { api } from "../lib/api";
 import { Badge } from "../components/ui";
@@ -158,7 +158,13 @@ export function MentorWidget() {
         style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-brand-600/40 [animation-duration:2.5s]" />
-        <Bot size={40} strokeWidth={2} className="transition-transform group-hover:-rotate-6" />
+        <span
+          className="select-none text-4xl leading-none transition-transform group-hover:-rotate-6"
+          role="img"
+          aria-hidden="true"
+        >
+          🧑‍💼
+        </span>
         <span className="absolute -top-1 right-0 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-emerald-500">
           <span className="h-1.5 w-1.5 rounded-full bg-white" />
         </span>
@@ -174,7 +180,7 @@ export function MentorWidget() {
       <div className="flex items-center justify-between gap-2 border-b border-gray-100 bg-brand-700 px-4 py-3 text-white">
         <div className="flex items-center gap-2.5">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15">
-            <Bot size={22} strokeWidth={2.25} />
+            <span className="text-xl leading-none" role="img" aria-hidden="true">🧑‍💼</span>
           </div>
           <div>
             <div className="text-base font-semibold">Mentor IA</div>
